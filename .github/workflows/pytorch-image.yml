@@ -27,7 +27,7 @@ jobs:
           password: ${{secrets.GITHUB_TOKEN}}
       - name: Build the Docker image
         if: github.repository == 'boettiger-lab/nautilus'
-        run: docker build . --tag ghcr.io/boettiger-lab/nautilus:latest
+        run: docker build . -f Dockerfile.pytorch --tag ghcr.io/boettiger-lab/nautilus:latest
       - name: Publish
         if: github.repository == 'boettiger-lab/nautilus'
         run: docker push ghcr.io/boettiger-lab/nautilus:latest
