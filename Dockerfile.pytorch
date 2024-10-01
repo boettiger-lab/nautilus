@@ -4,8 +4,6 @@ COPY jupyter-ai.yml environment.yml
 RUN conda update -n base -c conda-forge conda && \
     conda env update --file environment.yml
 
-RUN pip install git+https://gitlab.nrp-nautilus.io/prp/jupyter-ai-nrp
-
 USER root
 RUN curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama-linux-amd64.tgz && \
   tar -C /usr -xzf ollama-linux-amd64.tgz
