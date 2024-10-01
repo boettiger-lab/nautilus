@@ -7,6 +7,9 @@ dependencies:
   - jupyter-resource-usage
   - jupyter-vscode-proxy
   - pypdf
+  - langchain
+  - streamlit
+  - ibis-duckdb 
   - pip
   - pip:
     - jupyter-tensorboard-proxy
