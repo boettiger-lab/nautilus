@@ -3,11 +3,11 @@ channels:
   - conda-forge
 dependencies:
   - jupyterlab-myst
-  - jupyter-ai==2.23.0
+  - jupyter-ai
   - jupyter-resource-usage
   - jupyter-vscode-proxy
   - pypdf
-  - langchain
+  - langchain-ollama
   - streamlit
   - ibis-duckdb 
   - pip
