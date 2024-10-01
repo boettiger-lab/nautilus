@@ -7,7 +7,7 @@ dependencies:
   - jupyter-resource-usage
   - jupyter-vscode-proxy
   - pypdf
-  - langchain-ollama
+  - langchain
   - streamlit
   - ibis-duckdb 
   - pip
