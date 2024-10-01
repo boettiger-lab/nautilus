@@ -1,0 +1,154 @@
+hub:
+  config:
+    CILogonOAuthenticator:
+      oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
+      admin_users:
+      - cboettig@berkeley.edu 
+      # IDP Lookup: https://cilogon.org/idplist/
+      allowed_idps:
+        urn:mace:incommon:ucsd.edu:
+          allowed_domains:
+            - ucsd.edu
+          username_derivation:
+            username_claim: email
+        urn:mace:incommon:berkeley.edu:
+          allowed_domains:
+          - berkeley.edu
+          username_derivation:
+            username_claim: email
+    JupyterHub:
+      admin_access: true
+      admin_users: ["cboettig@berkeley.edu"]
+      authenticator_class: cilogon
+  service:
+    type: ClusterIP
+    annotations: {}
+    ports:
+      nodePort:
+    loadBalancerIP:
+  deploymentStrategy:
+    type: Recreate
+  db:
+    type: sqlite-pvc
+    pvc:
+      accessModes:
+        - ReadWriteOnce
+      storage: 10Gi
+      storageClassName: rook-ceph-block
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4Gi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  networkPolicy:
+    enabled: false
+  service:
+    type: ClusterIP
+  chp:
+    resources:
+      limits:
+        cpu: "6"
+        memory: 10Gi
+        nvidia.com/gpu: "1"
+      requests:
+        cpu: "1"
+        memory: 512Mi
+        nvidia.com/gpu: "1"
+singleuser:
+  uid: 0
+  fsGid: 100
+  extraEnv:
+    GRANT_SUDO: "yes"
+  extraPodConfig:
+    securityContext:
+        fsGroupChangePolicy: "OnRootMismatch"
+        fsGroup: 100
+  extraNodeAffinity:
+    required:
+      - matchExpressions:
+        - 'key': 'topology.kubernetes.io/region'
+          'operator': 'In'
+          'values': ["us-west"]
+  cloudMetadata:
+    blockWithIptables: false
+  networkPolicy:
+    enabled: false
+  storage:
+    type: dynamic
+    extraLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    capacity: 15Gi
+    homeMountPath: /home/jovyan
+    dynamic:
+      storageClass: rook-ceph-block
+      pvcNameTemplate: claim-{username}{servername}
+      volumeNameTemplate: volume-{username}{servername}
+      storageAccessModes: [ReadWriteOnce]
+  image:
+    name: quay.io/jupyter/scipy-notebook
+    tag: 2024-04-22
+  startTimeout: 600
+  cpu:
+    limit: 3
+    guarantee: 3
+  memory:
+    limit: 10G
+    guarantee: 10G
+  extraResource:
+    limits:
+      nvidia.com/gpu: "1"
+    guarantees:
+      nvidia.com/gpu: "1"
+  cmd: null
+  defaultUrl: "/lab"
+  profileList:
+  - display_name: ESPM-157 
+    kubespawner_override:
+      image_spec: "gitlab-registry.nrp-nautilus.io/cboettig/images"
+  - display_name: "Bring your own image"
+    description: "Specify your own docker image (must have python and jupyterhub installed in it)"
+    slug: "custom"
+    profile_options:
+      image:
+        display_name: Image
+        unlisted_choice:
+          enabled: True
+          display_name: "Custom image"
+          kubespawner_override:
+            image: "{value}"
+        choices: {}
+
+
+scheduling:
+  userScheduler:
+    enabled: false
+  userPlaceholder:
+    enabled: false
+# prePuller relates to the hook|continuous-image-puller DaemonsSets
+prePuller:
+  hook:
+    enabled: true
+  continuous:
+    enabled: false
+
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: haproxy
+  hosts: ["espm-157.nrp-nautilus.io"]
+  pathSuffix: ''
+  tls:
+    - hosts:
+      - espm-157.nrp-nautilus.io
+
+cull:
+  enabled: true
+  users: false
+  removeNamedServers: false
+  timeout: 3600
+  every: 600
+  concurrency: 10
+  maxAge: 0
