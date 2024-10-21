@@ -11,7 +11,7 @@ dependencies:
   - streamlit
   - ibis-duckdb
   - leafmap
-  - odc.stac
+  - odc-stac
   - pystac-client
   - planetary-computer
   - mystmd
