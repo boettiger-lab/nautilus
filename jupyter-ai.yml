@@ -9,7 +9,12 @@ dependencies:
   - pypdf
   - langchain
   - streamlit
-  - ibis-duckdb 
+  - ibis-duckdb
+  - leafmap
+  - odc.stac
+  - pystac-client
+  - planetary-computer
+  - mystmd
   - pip
   - pip:
     - jupyter-tensorboard-proxy
@@ -17,5 +22,5 @@ dependencies:
     - langchain-ollama
     - langchain-openai
     - langchain-mistralai
-
+    - git+https://github.com/eodaGmbH/py-maplibregl@feature/color-utils
 
