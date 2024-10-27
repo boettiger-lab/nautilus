@@ -3,20 +3,21 @@ channels:
   - conda-forge
 dependencies:
   - exactextract
+  - ibis-duckdb
   - jupyterlab-myst
   - jupyter-ai
   - jupyter-resource-usage
   - jupyter-vscode-proxy
-  - pypdf
   - langchain
-  - streamlit
-  - ibis-duckdb
   - leafmap
+  - mystmd
   - odc-stac
+  - pip
+  - pypdf
   - pystac-client
   - planetary-computer
-  - mystmd
-  - pip
+  - rioxarray
+  - streamlit
   - pip:
     - jupyter-tensorboard-proxy
     - git+https://gitlab.nrp-nautilus.io/prp/jupyter-ai-nrp
