@@ -3,6 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - exactextract
+  - flox
   - ibis-duckdb
   - jupyterlab-myst
   - jupyter-ai
