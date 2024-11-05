@@ -29,5 +29,7 @@ dependencies:
     - langchain-ollama
     - langchain-openai
     - langchain-mistralai
+    - langchain-aws
+    - langchain-anthropic
     - git+https://github.com/eodaGmbH/py-maplibregl@feature/color-utils
 
