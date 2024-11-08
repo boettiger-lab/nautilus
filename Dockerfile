@@ -8,6 +8,8 @@ USER root
 RUN curl -L https://ollama.com/download/ollama-linux-amd64.tgz -o ollama-linux-amd64.tgz && \
   tar -C /usr -xzf ollama-linux-amd64.tgz
 
+RUN curl https://dl.min.io/client/mc/release/linux-amd64/mc -o /usr/local/bin/mc && chmod +x /usr/local/bin/mc
+
 RUN curl -fsSL https://code-server.dev/install.sh | sh && rm -rf .cache
 
 RUN git config --system pull.rebase false && \
