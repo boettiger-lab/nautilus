@@ -10,6 +10,6 @@ helm upgrade --cleanup-on-fail \
   --create-namespace \
   --version=3.3.7 \
   --timeout 90m0s \
-  --values values.yaml
+  --values values.yaml \
   --values secrets.yaml
 

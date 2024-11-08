@@ -44,19 +44,21 @@ hub:
       memory: 512Mi
   networkPolicy:
     enabled: false
+proxy:
   service:
     type: ClusterIP
   chp:
     resources:
       limits:
-        cpu: "6"
+        cpu: "42"
         memory: 10Gi
         nvidia.com/gpu: "1"
       requests:
-        cpu: "1"
+        cpu: "2"
         memory: 512Mi
         nvidia.com/gpu: "1"
 singleuser:
+  startTimeout: 3600
   uid: 0
   fsGid: 100
   extraEnv:
@@ -92,8 +94,8 @@ singleuser:
     tag: 2024-04-22
   startTimeout: 600
   cpu:
-    limit: 3
-    guarantee: 3
+    limit: 42
+    guarantee: 2
   memory:
     limit: 10G
     guarantee: 10G
@@ -108,6 +110,10 @@ singleuser:
   - display_name: ESPM-157 
     kubespawner_override:
       image_spec: "gitlab-registry.nrp-nautilus.io/cboettig/images"
+  - display_name: pytorch-cuda12
+    kubespawner_override:
+      image_spec: "quay.io/jupyter/pytorch-notebook:cuda12-ubuntu-24.04"
+      http_timeout: 3600
   - display_name: "Bring your own image"
     description: "Specify your own docker image (must have python and jupyterhub installed in it)"
     slug: "custom"
