@@ -16,6 +16,7 @@ dependencies:
   - leafmap
   - libgdal-arrow-parquet
   - mystmd
+  - minio
   - odc-stac
   - pip
   - pypdf

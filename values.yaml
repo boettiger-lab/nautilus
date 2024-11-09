@@ -94,8 +94,8 @@ singleuser:
     tag: 2024-04-22
   startTimeout: 600
   cpu:
-    limit: 42
-    guarantee: 2
+    limit: 100
+    guarantee: 1
   memory:
     limit: 10G
     guarantee: 10G
