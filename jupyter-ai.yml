@@ -5,8 +5,8 @@ dependencies:
   - codecarbon
   - exactextract
   - flox
-  - geoarrow-c
   - geoarrow-types
+  - gh-scoped-creds
   - ibis-duckdb
   - jupyterlab-myst
   - jupyter-ai
