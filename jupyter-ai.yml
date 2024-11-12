@@ -13,6 +13,7 @@ dependencies:
   - jupyter-resource-usage
   - jupyter-vscode-proxy
   - langchain
+  - latexmk
   - leafmap
   - libgdal-arrow-parquet
   - mystmd

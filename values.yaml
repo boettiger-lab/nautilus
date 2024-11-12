@@ -20,6 +20,12 @@ hub:
       admin_access: true
       admin_users: ["cboettig@berkeley.edu"]
       authenticator_class: cilogon
+      KubeSpawner:
+        environment:
+          SHELL: /usr/bin/bash
+          GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
+          GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
+
   service:
     type: ClusterIP
     annotations: {}
