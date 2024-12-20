@@ -2,7 +2,7 @@ name: CPU notebook Image
 on:
   workflow_dispatch: null
   push:
-    paths: ['Dockerfile', 'jupyter-ai.yml']
+    paths: ['Dockerfile.cpu', 'jupyter-ai.yml']
 jobs:
   build:
     runs-on: ubuntu-latest
