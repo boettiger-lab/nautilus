@@ -30,10 +30,5 @@ dependencies:
     - jupyter-tensorboard-proxy
     - git+https://gitlab.nrp-nautilus.io/prp/jupyter-ai-nrp
     - langchain-anthropic
-    - langchain-aws
-    - langchain-chroma
-    - langchain-ollama
     - langchain-openai
-    - langchain-mistralai
-    - git+https://github.com/eodaGmbH/py-maplibregl@feature/color-utils
 
