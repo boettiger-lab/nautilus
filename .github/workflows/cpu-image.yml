@@ -32,5 +32,4 @@ jobs:
         if: github.repository == 'boettiger-lab/nautilus'
         run: docker push ghcr.io/boettiger-lab/nautilus-cpu:latest
 
-USER root
 
