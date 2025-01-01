@@ -142,7 +142,7 @@ scheduling:
 # prePuller relates to the hook|continuous-image-puller DaemonsSets
 prePuller:
   hook:
-    enabled: true
+    enabled: false 
   continuous:
     enabled: false
 
