@@ -2,38 +2,25 @@ name: base
 channels:
   - conda-forge
 dependencies:
-  - codecarbon
   - duckdb-engine
-  - exactextract
-  - flox
-  - geoarrow-types
   - gh-scoped-creds
+  - git-filter-repo
   - ibis-duckdb
   - jupyterlab-myst
   - jupyter-ai
+  - jupyter-sphinx
   - jupyter-resource-usage
+  - jupyter-rsession-proxy
   - jupyter-vscode-proxy
-  - langchain
-  - latexmk
-  - leafmap
-  - libgdal-arrow-parquet
+  - jupyterlab-myst
   - mystmd
   - minio
-  - odc-stac
-  - pip
   - pypdf
-  - pystac-client
-  - planetary-computer
-  - rioxarray
-  - streamlit
+  - pip
+  - seaborn
   - pip:
     - jupyter-tensorboard-proxy
     - git+https://gitlab.nrp-nautilus.io/prp/jupyter-ai-nrp
     - langchain-anthropic
-    - langchain-aws
-    - langchain-chroma
-    - langchain-ollama
     - langchain-openai
-    - langchain-mistralai
-    - git+https://github.com/eodaGmbH/py-maplibregl@feature/color-utils
 
