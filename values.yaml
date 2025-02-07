@@ -98,27 +98,27 @@ singleuser:
   image:
     name: quay.io/jupyter/scipy-notebook
     tag: 2024-04-22
-  startTimeout: 600
+  startTimeout: 3600
   cpu:
     limit: 100
     guarantee: 1
   memory:
     limit: 10G
     guarantee: 10G
-  extraResource:
-    limits:
-      nvidia.com/gpu: "1"
-    guarantees:
-      nvidia.com/gpu: "1"
   cmd: null
   defaultUrl: "/lab"
   profileList:
-  - display_name: ESPM-157 
+  - display_name: GPU instance
+    kubespawner_override:
+      image_spec: "ghcr.io/boettiger-lab/k8s-gpu"
+      extra_resource_limits:
+        nvidia.com/gpu: "1"
+  - display_name: CPU instance
+    kubespawner_override:
+      image_spec: "ghcr.io/boettiger-lab/k8s"
+  - display_name: nrp-image
     kubespawner_override:
       image_spec: "gitlab-registry.nrp-nautilus.io/cboettig/images"
-  - display_name: pytorch-cuda12
-    kubespawner_override:
-      image_spec: "quay.io/jupyter/pytorch-notebook:cuda12-ubuntu-24.04"
       http_timeout: 3600
   - display_name: "Bring your own image"
     description: "Specify your own docker image (must have python and jupyterhub installed in it)"
