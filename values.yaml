@@ -1,5 +1,13 @@
 hub:
   config:
+    GitHubOAuthenticator:
+      allowed_organizations:
+        - espm-157
+        - espm-288
+        - boettiger-lab
+      scope:
+        - read:org
+      oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
     CILogonOAuthenticator:
       oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
       admin_users:
@@ -19,7 +27,8 @@ hub:
     JupyterHub:
       admin_access: true
       admin_users: ["cboettig@berkeley.edu"]
-      authenticator_class: cilogon
+      # set to github or cilogon
+      authenticator_class: github
       KubeSpawner:
         environment:
           SHELL: /usr/bin/bash
