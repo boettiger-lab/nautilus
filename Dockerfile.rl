@@ -1,4 +1,4 @@
-FROM rocker/ml 
+FROM rocker/cuda
 
 COPY rl-env.yml environment.yml
 
