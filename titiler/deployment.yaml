@@ -39,12 +39,32 @@ spec:
             cpu: 8
             memory: 32Gi
         env:
-          CPL_TMPDIR: /tmp
-          GDAL_CACHEMAX: 200 # 200 mb
-          VSI_CACHE: TRUE
-          VSI_CACHE_SIZE: 5000000 # 5 MB (per file-handle)
-          GDAL_DISABLE_READDIR_ON_OPEN: EMPTY_DIR
-          GDAL_HTTP_MERGE_CONSECUTIVE_RANGES: YES
-          PYTHONWARNINGS: ignore
-          WEB_CONCURRENCY: 2
+        - name: CPL_TMPDIR
+          value: "/tmp"
+        - name: GDAL_CACHEMAX
+          value: "200" # 200 mb
+        - name: VSI_CACHE
+          value: "TRUE"
+        - name: VSI_CACHE_SIZE
+          value: "5000000" # 5 MB (per file-handle)
+        - name: GDAL_DISABLE_READDIR_ON_OPEN
+          value: "EMPTY_DIR"
+        - name: GDAL_HTTP_MERGE_CONSECUTIVE_RANGES
+          value: "YES"
+        - name: PYTHONWARNINGS
+          value: "ignore"
+        - name: WEB_CONCURRENCY
+          value: "2"
+        livenessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 6
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          failureThreshold: 3
 

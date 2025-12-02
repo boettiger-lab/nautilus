@@ -5,6 +5,7 @@ hub:
         - espm-157
         - espm-288
         - boettiger-lab
+        - SchmidtDSE
       scope:
         - read:org
       oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
@@ -105,8 +106,8 @@ singleuser:
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]
   image:
-    name: quay.io/jupyter/scipy-notebook
-    tag: 2024-04-22
+    name: gitlab-registry.nrp-nautilus.io/cboettig/images
+    pullPolicy: IfNotPresent
   startTimeout: 3600
   cpu:
     limit: 10
@@ -117,18 +118,15 @@ singleuser:
   cmd: null
   defaultUrl: "/lab"
   profileList:
-  - display_name: GPU instance
-    kubespawner_override:
-      image_spec: "ghcr.io/boettiger-lab/k8s-gpu"
-      extra_resource_limits:
-        nvidia.com/gpu: "1"
   - display_name: CPU instance
     kubespawner_override:
       image_spec: "ghcr.io/boettiger-lab/k8s"
-  - display_name: nrp-image
+  - display_name: GPU Image
     kubespawner_override:
-      image_spec: "gitlab-registry.nrp-nautilus.io/cboettig/images"
+      image_spec: "ghcr.io/boettiger-lab/k8s-gpu"
       http_timeout: 3600
+      extra_resource_limits:
+        nvidia.com/gpu: "1"
   - display_name: "Bring your own image"
     description: "Specify your own docker image (must have python and jupyterhub installed in it)"
     slug: "custom"

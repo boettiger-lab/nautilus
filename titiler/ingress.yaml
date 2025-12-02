@@ -2,10 +2,28 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
+    # Timeout settings
     haproxy.org/timeout-server: "300s"
     haproxy.org/timeout-client: "300s"
     haproxy.org/timeout-connect: "30s"
     haproxy.org/timeout-http-request: "300s"
+    
+    # Enable CORS for tile requests
+    haproxy.org/cors-enable: "true"
+    
+    # Allow requests from any origin (for public tile service)
+    haproxy.org/cors-allow-origin: "*"
+    
+    haproxy.org/cors-allow-methods: "*"
+    
+    # Allow necessary headers for tile requests
+    haproxy.org/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range"
+    
+    # Expose headers in responses (important for tile services)
+    haproxy.org/cors-expose-headers: "Content-Length,Content-Range,Content-Type"
+    
+    # Cache preflight responses for 1 hour (tiles are stable)
+    haproxy.org/cors-max-age: "3600"
   name: titiler
 spec:
   ingressClassName: haproxy

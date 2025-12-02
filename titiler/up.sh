@@ -1,8 +1,8 @@
 #!/bin/bash
 
-kubectl apply -f service.yaml -n biodiversity
-kubectl apply -f ingress.yaml -n biodiversity
-kubectl apply -f deployment.yaml -n biodiversity
+kubectl apply -f service.yaml -n espm-157 
+kubectl apply -f ingress.yaml -n espm-157
+kubectl apply -f deployment.yaml -n espm-157
 
-kubectl get pods -n biodiversity
+kubectl get pods -n espm-157
 
