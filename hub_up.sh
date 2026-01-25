@@ -9,9 +9,8 @@ helm upgrade --cleanup-on-fail \
   --namespace espm-157 \
   --version=4.0.0 \
   --timeout 90m0s \
-  --values values.yaml \
-  --values secrets.yaml
+  --values values.yaml
 
 # purge everything related to helm
-# helm delete jupyterhelm 
+# helm delete jupyterhelm
 

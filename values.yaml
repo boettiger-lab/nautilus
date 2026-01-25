@@ -1,4 +1,53 @@
 hub:
+  # Inject OAuth and AWS credentials from K8s secrets into environment
+  extraEnv:
+    GITHUB_CLIENT_ID:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-oauth-secret
+          key: GITHUB_CLIENT_ID
+    GITHUB_CLIENT_SECRET:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-oauth-secret
+          key: GITHUB_CLIENT_SECRET
+    CILOGON_CLIENT_ID:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-oauth-secret
+          key: CILOGON_CLIENT_ID
+    CILOGON_CLIENT_SECRET:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-oauth-secret
+          key: CILOGON_CLIENT_SECRET
+    PROXY_SECRET_TOKEN:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-proxy-secret
+          key: PROXY_SECRET_TOKEN
+    AWS_ACCESS_KEY_ID:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-aws-secret
+          key: AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-aws-secret
+          key: AWS_SECRET_ACCESS_KEY
+  extraConfig:
+    # Read OAuth credentials from environment variables (set via extraEnv from K8s secret)
+    configure-oauth-from-env: |
+      import os
+      c.GitHubOAuthenticator.client_id = os.environ.get('GITHUB_CLIENT_ID')
+      c.GitHubOAuthenticator.client_secret = os.environ.get('GITHUB_CLIENT_SECRET')
+      c.CILogonOAuthenticator.client_id = os.environ.get('CILOGON_CLIENT_ID')
+      c.CILogonOAuthenticator.client_secret = os.environ.get('CILOGON_CLIENT_SECRET')
+    # Read proxy secret token from environment variable
+    configure-proxy-from-env: |
+      import os
+      c.ConfigurableHTTPProxy.auth_token = os.environ.get('PROXY_SECRET_TOKEN')
   config:
     GitHubOAuthenticator:
       allowed_organizations:
@@ -8,11 +57,11 @@ hub:
         - SchmidtDSE
       scope:
         - read:org
-      oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
+      oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
     CILogonOAuthenticator:
-      oauth_callback_url: https://espm-157.nrp-nautilus.io/hub/oauth_callback
+      oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
       admin_users:
-      - cboettig@berkeley.edu 
+      - cboettig@berkeley.edu
       # IDP Lookup: https://cilogon.org/idplist/
       allowed_idps:
         urn:mace:incommon:berkeley.edu:
@@ -25,11 +74,11 @@ hub:
       admin_users: ["cboettig@berkeley.edu"]
       # set to github or cilogon
       authenticator_class: github
-      KubeSpawner:
-        environment:
-          SHELL: /usr/bin/bash
-          GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
-          GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
+    KubeSpawner:
+      environment:
+        SHELL: /usr/bin/bash
+        GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
+        GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
 
   service:
     type: ClusterIP
@@ -69,11 +118,20 @@ proxy:
         memory: 512Mi
         nvidia.com/gpu: "1"
 singleuser:
+  allowPrivilegeEscalation: true
   startTimeout: 3600
-  uid: 0
   fsGid: 100
   extraEnv:
-    GRANT_SUDO: "yes"
+    AWS_ACCESS_KEY_ID:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-aws-secret
+          key: AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY:
+      valueFrom:
+        secretKeyRef:
+          name: jupyter-aws-secret
+          key: AWS_SECRET_ACCESS_KEY
   extraPodConfig:
     securityContext:
         fsGroupChangePolicy: "OnRootMismatch"
@@ -91,8 +149,6 @@ singleuser:
   storage:
     type: dynamic
     extraLabels: {}
-    extraVolumes: []
-    extraVolumeMounts: []
     capacity: 15Gi
     homeMountPath: /home/jovyan
     dynamic:
@@ -100,6 +156,21 @@ singleuser:
       pvcNameTemplate: claim-{username}{servername}
       volumeNameTemplate: volume-{username}{servername}
       storageAccessModes: [ReadWriteOnce]
+    extraVolumeMounts:
+      - name: shm-volume
+        mountPath: /dev/shm
+    extraVolumes:
+      - name: shm-volume
+        emptyDir:
+          medium: Memory
+  extraFiles:
+    jupyter_server_config.json:
+        mountPath: /usr/local/etc/jupyter/jupyter_server_config.json
+        data:
+          ContentsManager:
+            allow_hidden: true
+          FileContentsManager:
+            always_delete_dir: true
   image:
     name: gitlab-registry.nrp-nautilus.io/cboettig/images
     pullPolicy: IfNotPresent
@@ -110,31 +181,85 @@ singleuser:
   memory:
     limit: 10G
     guarantee: 10G
-  cmd: null
   defaultUrl: "/vscode"
   profileList:
-  - display_name: CPU instance
-    kubespawner_override:
-      image_spec: "ghcr.io/rocker-org/ml"
-  - display_name: GPU Image
-    kubespawner_override:
-      image_spec: "ghcr.io/rocker-org/ml"
-      http_timeout: 3600
-      extra_resource_limits:
-        nvidia.com/gpu: "1"
-  - display_name: "Bring your own image"
-    description: "Specify your own docker image (must have jupyterhub-singleuser)"
-    slug: "custom"
+  - display_name: "Choose your environment and resources"
+    default: true
     profile_options:
       image:
-        display_name: Image
+        display_name: Environment
         unlisted_choice:
           enabled: True
           display_name: "Custom image"
+          display_name_in_choices: "Specify an existing docker image"
+          description_in_choices: "Use a pre-existing docker image from a public docker registry"
+          description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
+          validation_regex: "^.+:.+$"
+          validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
           kubespawner_override:
             image: "{value}"
-            defaultUrl: "/lab"
-        choices: {}
+        choices:
+          rocker-ml:
+            display_name: Rocker ML
+            description: Machine Learning environment for R & python (rocker/ml)
+            kubespawner_override:
+              image: "ghcr.io/rocker-org/ml:latest"
+            default: true
+          rocker-geospatial:
+            display_name: Rocker ML spatial
+            description: Geospatial environment for R & python (rocker/ml-spatial)
+            kubespawner_override:
+              image: "ghcr.io/rocker-org/ml-spatial:latest"
+      resource_allocation:
+        display_name: Resource Allocation
+        choices:
+          mem_8:
+            display_name: 8 GB RAM
+            kubespawner_override:
+              mem_guarantee: 8G
+              mem_limit: 8G
+              cpu_guarantee: 4
+              cpu_limit: 4
+            default: true
+          mem_16:
+            display_name: 16 GB RAM
+            kubespawner_override:
+              mem_guarantee: 16G
+              mem_limit: 16G
+              cpu_guarantee: 8
+              cpu_limit: 8
+          mem_32:
+            display_name: 32 GB RAM
+            kubespawner_override:
+              mem_guarantee: 32G
+              mem_limit: 32G
+              cpu_guarantee: 10
+              cpu_limit: 10
+          mem_64:
+            display_name: 64 GB RAM
+            kubespawner_override:
+              mem_guarantee: 64G
+              mem_limit: 64G
+              cpu_guarantee: 10
+              cpu_limit: 10
+          mem_128:
+            display_name: 128 GB RAM
+            kubespawner_override:
+              mem_guarantee: 128G
+              mem_limit: 128G
+              cpu_guarantee: 10
+              cpu_limit: 10
+      gpu:
+        display_name: GPU
+        choices:
+          none:
+            display_name: No GPU
+            default: true
+          gpu_1:
+            display_name: 1 GPU
+            kubespawner_override:
+              extra_resource_limits:
+                nvidia.com/gpu: "1"
 
 
 scheduling:
