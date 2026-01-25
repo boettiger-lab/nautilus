@@ -1,2 +1,2 @@
-FROM ghcr.io/boettiger-lab/k8s-gpu
+FROM ghcr.io/rocker/ml
 

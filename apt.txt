@@ -1,6 +1,0 @@
-texlive-xetex
-texlive-fonts-recommended
-texlive-plain-generic
-texlive-lang-chinese
-lmodern
-

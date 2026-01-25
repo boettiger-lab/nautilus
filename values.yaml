@@ -15,11 +15,6 @@ hub:
       - cboettig@berkeley.edu 
       # IDP Lookup: https://cilogon.org/idplist/
       allowed_idps:
-        urn:mace:incommon:ucsd.edu:
-          allowed_domains:
-            - ucsd.edu
-          username_derivation:
-            username_claim: email
         urn:mace:incommon:berkeley.edu:
           allowed_domains:
           - berkeley.edu
@@ -116,19 +111,19 @@ singleuser:
     limit: 10G
     guarantee: 10G
   cmd: null
-  defaultUrl: "/lab"
+  defaultUrl: "/vscode"
   profileList:
   - display_name: CPU instance
     kubespawner_override:
-      image_spec: "ghcr.io/boettiger-lab/k8s"
+      image_spec: "ghcr.io/rocker-org/ml"
   - display_name: GPU Image
     kubespawner_override:
-      image_spec: "ghcr.io/boettiger-lab/k8s-gpu"
+      image_spec: "ghcr.io/rocker-org/ml"
       http_timeout: 3600
       extra_resource_limits:
         nvidia.com/gpu: "1"
   - display_name: "Bring your own image"
-    description: "Specify your own docker image (must have python and jupyterhub installed in it)"
+    description: "Specify your own docker image (must have jupyterhub-singleuser)"
     slug: "custom"
     profile_options:
       image:
@@ -138,6 +133,7 @@ singleuser:
           display_name: "Custom image"
           kubespawner_override:
             image: "{value}"
+            defaultUrl: "/lab"
         choices: {}
 
 
@@ -157,16 +153,16 @@ ingress:
   enabled: true
   annotations:
     kubernetes.io/ingress.class: haproxy
-  hosts: ["espm-157.nrp-nautilus.io"]
+  hosts: ["espm.nrp-nautilus.io"]
   pathSuffix: ''
   tls:
     - hosts:
-      - espm-157.nrp-nautilus.io
+      - espm.nrp-nautilus.io
 
 cull:
   enabled: true
   users: false
-  removeNamedServers: false
+  removeNamedServers: true
   timeout: 3600
   every: 600
   concurrency: 10
