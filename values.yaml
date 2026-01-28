@@ -91,9 +91,12 @@ hub:
   db:
     type: sqlite-pvc
     pvc:
+      # TEMPORARY PVC SWAP to unblock deployment, 2026-01-25
+      # Old PVC hub-db-dir is stuck in ContainerCreating due to Ceph mount issue.
+      # DO NOT DELETE the old volume; data not migrated. To revert: return size to 10Gi below.
       accessModes:
         - ReadWriteOnce
-      storage: 10Gi
+      storage: 11Gi
       storageClassName: rook-ceph-block
   resources:
     limits:
@@ -112,11 +115,11 @@ proxy:
       limits:
         cpu: "10"
         memory: 10Gi
-        nvidia.com/gpu: "1"
+        #       # nvidia.com/gpu: "1"
       requests:
         cpu: "2"
         memory: 512Mi
-        nvidia.com/gpu: "1"
+        #       # nvidia.com/gpu: "1"
 singleuser:
   allowPrivilegeEscalation: true
   startTimeout: 3600
@@ -174,30 +177,30 @@ singleuser:
   image:
     name: gitlab-registry.nrp-nautilus.io/cboettig/images
     pullPolicy: IfNotPresent
-  startTimeout: 3600
   cpu:
     limit: 10
     guarantee: 1
   memory:
     limit: 10G
     guarantee: 10G
-  defaultUrl: "/vscode"
   profileList:
   - display_name: "Choose your environment and resources"
     default: true
     profile_options:
+      interface:
+        display_name: Interface
+        choices:
+          vscode:
+            display_name: VS Code
+            default: true
+            kubespawner_override:
+              default_url: "/vscode"
+          rstudio:
+            display_name: RStudio
+            kubespawner_override:
+              default_url: "/rstudio"
       image:
         display_name: Environment
-        unlisted_choice:
-          enabled: True
-          display_name: "Custom image"
-          display_name_in_choices: "Specify an existing docker image"
-          description_in_choices: "Use a pre-existing docker image from a public docker registry"
-          description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
-          validation_regex: "^.+:.+$"
-          validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
-          kubespawner_override:
-            image: "{value}"
         choices:
           rocker-ml:
             display_name: Rocker ML
@@ -210,6 +213,17 @@ singleuser:
             description: Geospatial environment for R & python (rocker/ml-spatial)
             kubespawner_override:
               image: "ghcr.io/rocker-org/ml-spatial:latest"
+          custom:
+            display_name: "Specify an existing docker image"
+            description: "Use a pre-existing docker image from a public docker registry"
+            unlisted_choice:
+              enabled: True
+              display_name: "Custom image"
+              description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
+              validation_regex: "^.+:.+$"
+              validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
+              kubespawner_override:
+                image: "{value}"
       resource_allocation:
         display_name: Resource Allocation
         choices:
@@ -259,7 +273,7 @@ singleuser:
             display_name: 1 GPU
             kubespawner_override:
               extra_resource_limits:
-                nvidia.com/gpu: "1"
+                #       # nvidia.com/gpu: "1"
 
 
 scheduling:
