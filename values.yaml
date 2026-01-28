@@ -115,11 +115,9 @@ proxy:
       limits:
         cpu: "10"
         memory: 10Gi
-        #       # nvidia.com/gpu: "1"
       requests:
         cpu: "2"
         memory: 512Mi
-        #       # nvidia.com/gpu: "1"
 singleuser:
   allowPrivilegeEscalation: true
   startTimeout: 3600
@@ -269,7 +267,7 @@ singleuser:
           none:
             display_name: No GPU
             default: true
-gpu_1:
+          gpu_1:
                 display_name: 1 GPU
                 kubespawner_override:
                   extra_resource_limits:
