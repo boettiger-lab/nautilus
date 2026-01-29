@@ -135,14 +135,14 @@ singleuser:
           key: AWS_SECRET_ACCESS_KEY
   extraPodConfig:
     securityContext:
-        fsGroupChangePolicy: "OnRootMismatch"
-        fsGroup: 100
+      fsGroupChangePolicy: "OnRootMismatch"
+      fsGroup: 100
   extraNodeAffinity:
     required:
       - matchExpressions:
-        - 'key': 'topology.kubernetes.io/region'
-          'operator': 'In'
-          'values': ["us-west"]
+          - key: topology.kubernetes.io/region
+            operator: In
+            values: ["us-west"]
   cloudMetadata:
     blockWithIptables: false
   networkPolicy:
@@ -190,38 +190,42 @@ singleuser:
         choices:
           vscode:
             display_name: VS Code
-            default: true
             kubespawner_override:
               default_url: "/vscode"
           rstudio:
             display_name: RStudio
+            default: true
             kubespawner_override:
               default_url: "/rstudio"
+          lab:
+            display_name: JupyterLab
+            kubespawner_override:
+              default_url: "/lab"
       image:
         display_name: Environment
         choices:
-          rocker-ml:
-            display_name: Rocker ML
-            description: Machine Learning environment for R & python (rocker/ml)
-            kubespawner_override:
-              image: "ghcr.io/rocker-org/ml:latest"
-            default: true
-          rocker-geospatial:
-            display_name: Rocker ML spatial
-            description: Geospatial environment for R & python (rocker/ml-spatial)
-            kubespawner_override:
-              image: "ghcr.io/rocker-org/ml-spatial:latest"
-          custom:
-            display_name: "Specify an existing docker image"
-            description: "Use a pre-existing docker image from a public docker registry"
-            unlisted_choice:
-              enabled: True
-              display_name: "Custom image"
-              description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
-              validation_regex: "^.+:.+$"
-              validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
-              kubespawner_override:
-                image: "{value}"
+           rocker-ml:
+             display_name: Rocker ML
+             description: Machine Learning environment for R & python (rocker/ml)
+             kubespawner_override:
+               image: "ghcr.io/boettiger-lab/megadetector:cuda"
+             default: true
+           geospatial:
+             display_name: Rocker ML spatial
+             description: Geospatial environment for R & python (rocker/ml-spatial)
+             kubespawner_override:
+               image: "ghcr.io/rocker-org/ml-spatial:latest"
+           custom:
+             display_name: "Specify an existing docker image"
+             description: "Use a pre-existing docker image from a public docker registry"
+             unlisted_choice:
+               enabled: True
+               display_name: "Custom image"
+               description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
+               validation_regex: "^.+:.+$"
+               validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
+               kubespawner_override:
+                 image: "{value}"
       resource_allocation:
         display_name: Resource Allocation
         choices:
