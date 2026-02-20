@@ -62,6 +62,10 @@ hub:
       oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
       admin_users:
       - cboettig@berkeley.edu
+      # NRP-required admin users (per https://nrp.ai/documentation/userdocs/jupyter/jupyterhub/)
+      - mfsada@ucsd.edu
+      - d4diaz@ucsd.edu
+      - dmishin@ucsd.edu
       # IDP Lookup: https://cilogon.org/idplist/
       allowed_idps:
         urn:mace:incommon:berkeley.edu:
@@ -69,11 +73,21 @@ hub:
           - berkeley.edu
           username_derivation:
             username_claim: email
+        # UCSD required so NRP admins can authenticate
+        urn:mace:incommon:ucsd.edu:
+          allowed_domains:
+          - ucsd.edu
+          username_derivation:
+            username_claim: email
     JupyterHub:
       admin_access: true
-      admin_users: ["cboettig@berkeley.edu"]
-      # set to github or cilogon
-      authenticator_class: github
+      admin_users:
+        - "cboettig@berkeley.edu"
+        # NRP-required admin users
+        - "mfsada@ucsd.edu"
+        - "d4diaz@ucsd.edu"
+        - "dmishin@ucsd.edu"
+      authenticator_class: cilogon
     KubeSpawner:
       environment:
         SHELL: /usr/bin/bash
@@ -203,29 +217,44 @@ singleuser:
               default_url: "/lab"
       image:
         display_name: Environment
+        unlisted_choice:
+          enabled: True
+          display_name: "Custom image"
+          display_name_in_choices: "Specify an existing docker image"
+          description_in_choices: "Use a pre-existing docker image from a public docker registry"
+          description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
+          validation_regex: "^.+:.+$"
+          validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
+          kubespawner_override:
+            image: "{value}"
         choices:
-           rocker-ml:
-             display_name: Rocker ML
-             description: Machine Learning environment for R & python (rocker/ml)
-             kubespawner_override:
-               image: "ghcr.io/boettiger-lab/megadetector:cuda"
-             default: true
-           geospatial:
-             display_name: Rocker ML spatial
-             description: Geospatial environment for R & python (rocker/ml-spatial)
-             kubespawner_override:
-               image: "ghcr.io/rocker-org/ml-spatial:latest"
-           custom:
-             display_name: "Specify an existing docker image"
-             description: "Use a pre-existing docker image from a public docker registry"
-             unlisted_choice:
-               enabled: True
-               display_name: "Custom image"
-               description: "Specify your own docker image (must have jupyterhub-singleuser installed)"
-               validation_regex: "^.+:.+$"
-               validation_message: "Must be a publicly available docker image, of form <image-name>:<tag>"
-               kubespawner_override:
-                 image: "{value}"
+          01-rocker-ml:
+            display_name: rocker/ml (CPU)
+            description: Machine Learning environment for R & python (rocker/ml)
+            kubespawner_override:
+              image: "ghcr.io/rocker-org/ml:latest"
+          02-speciesnet:
+            display_name: SpeciesNet (GPU)
+            description: CV/ML for ecology
+            kubespawner_override:
+              image: "ghcr.io/boettiger-lab/speciesnet:latest"
+              extra_resource_limits:
+                nvidia.com/gpu: "1"
+            default: true
+          03-rocker-cuda:
+            display_name: rocker/cuda (GPU)
+            description: Machine Learning environment for R & python
+            kubespawner_override:
+              image: "ghcr.io/rocker-org/cuda:latest"
+              extra_resource_limits:
+                nvidia.com/gpu: "1"
+            default: true
+          04-geospatial:
+            display_name: Rocker ML spatial
+            description: Geospatial environment for R & python (rocker/ml-spatial)
+            kubespawner_override:
+              image: "ghcr.io/rocker-org/ml-spatial:latest"
+
       resource_allocation:
         display_name: Resource Allocation
         choices:
@@ -234,23 +263,23 @@ singleuser:
             kubespawner_override:
               mem_guarantee: 8G
               mem_limit: 8G
-              cpu_guarantee: 4
-              cpu_limit: 4
+              cpu_guarantee: 1
+              cpu_limit: 1
             default: true
           mem_16:
             display_name: 16 GB RAM
             kubespawner_override:
               mem_guarantee: 16G
               mem_limit: 16G
-              cpu_guarantee: 8
-              cpu_limit: 8
+              cpu_guarantee: 2
+              cpu_limit: 2
           mem_32:
             display_name: 32 GB RAM
             kubespawner_override:
               mem_guarantee: 32G
               mem_limit: 32G
-              cpu_guarantee: 10
-              cpu_limit: 10
+              cpu_guarantee: 4
+              cpu_limit: 4
           mem_64:
             display_name: 64 GB RAM
             kubespawner_override:
@@ -265,17 +294,7 @@ singleuser:
               mem_limit: 128G
               cpu_guarantee: 10
               cpu_limit: 10
-      gpu:
-        display_name: GPU
-        choices:
-          none:
-            display_name: No GPU
-            default: true
-          gpu_1:
-                display_name: 1 GPU
-                kubespawner_override:
-                  extra_resource_limits:
-                    nvidia.com/gpu: "1"
+
 
 
 scheduling:
