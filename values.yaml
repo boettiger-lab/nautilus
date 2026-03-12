@@ -36,6 +36,11 @@ hub:
         secretKeyRef:
           name: jupyter-aws-secret
           key: AWS_SECRET_ACCESS_KEY
+    OPENAI_API_KEY:
+      valueFrom:
+        secretKeyRef:
+          name: nrp-llm-secret
+          key: NRP_LLM_API_KEY
   extraConfig:
     # Read OAuth credentials from environment variables (set via extraEnv from K8s secret)
     configure-oauth-from-env: |
@@ -48,6 +53,26 @@ hub:
     configure-proxy-from-env: |
       import os
       c.ConfigurableHTTPProxy.auth_token = os.environ.get('PROXY_SECRET_TOKEN')
+    # Pass secrets from hub env into singleuser pods via KubeSpawner
+    configure-singleuser-secrets: |
+      import os
+      c.KubeSpawner.environment.update({
+          'AWS_ACCESS_KEY_ID': os.environ.get('AWS_ACCESS_KEY_ID'),
+          'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY'),
+          'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
+      })
+      # Write env vars to R_HOME/etc/Renviron so RStudio can see them,
+      # and generate the en_US.UTF-8 locale to fix R startup warnings
+      c.KubeSpawner.lifecycle_hooks = {
+          "postStart": {
+              "exec": {
+                  "command": ["bash", "-c",
+                      "sudo locale-gen en_US.UTF-8 && "
+                      "/tmp/set_renviron.sh LANG LC_ALL AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY OPENAI_BASE_URL"
+                  ]
+              }
+          }
+      }
   config:
     GitHubOAuthenticator:
       allowed_organizations:
@@ -55,6 +80,7 @@ hub:
         - espm-288
         - boettiger-lab
         - SchmidtDSE
+        - berkeley-espm
       scope:
         - read:org
       oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
@@ -93,6 +119,9 @@ hub:
         SHELL: /usr/bin/bash
         GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
         GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
+        OPENAI_BASE_URL: "https://ellm.nrp-nautilus.io/v1"
+        LANG: "en_US.UTF-8"
+        LC_ALL: "en_US.UTF-8"
 
   service:
     type: ClusterIP
@@ -136,17 +165,6 @@ singleuser:
   allowPrivilegeEscalation: true
   startTimeout: 3600
   fsGid: 100
-  extraEnv:
-    AWS_ACCESS_KEY_ID:
-      valueFrom:
-        secretKeyRef:
-          name: jupyter-aws-secret
-          key: AWS_ACCESS_KEY_ID
-    AWS_SECRET_ACCESS_KEY:
-      valueFrom:
-        secretKeyRef:
-          name: jupyter-aws-secret
-          key: AWS_SECRET_ACCESS_KEY
   extraPodConfig:
     securityContext:
       fsGroupChangePolicy: "OnRootMismatch"
@@ -232,7 +250,8 @@ singleuser:
             display_name: rocker/ml (CPU)
             description: Machine Learning environment for R & python (rocker/ml)
             kubespawner_override:
-              image: "ghcr.io/rocker-org/ml:latest"
+              image: "ghcr.io/boettiger-lab/k8s:latest"
+            default: true
           02-speciesnet:
             display_name: SpeciesNet (GPU)
             description: CV/ML for ecology
@@ -240,7 +259,6 @@ singleuser:
               image: "ghcr.io/boettiger-lab/speciesnet:latest"
               extra_resource_limits:
                 nvidia.com/gpu: "1"
-            default: true
           03-rocker-cuda:
             display_name: rocker/cuda (GPU)
             description: Machine Learning environment for R & python
@@ -248,7 +266,6 @@ singleuser:
               image: "ghcr.io/rocker-org/cuda:latest"
               extra_resource_limits:
                 nvidia.com/gpu: "1"
-            default: true
           04-geospatial:
             display_name: Rocker ML spatial
             description: Geospatial environment for R & python (rocker/ml-spatial)
