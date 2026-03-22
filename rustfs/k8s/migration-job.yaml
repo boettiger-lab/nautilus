@@ -1,0 +1,122 @@
+# Rclone migration job: NRP Ceph S3 → RustFS
+#
+# Run this AFTER RustFS is up and you have created matching bucket names in the console.
+# Monitor with: kubectl -n biodiversity logs -f job/rustfs-migrate
+#
+# The job uses the existing 'aws' and 'rclone-config' secrets already in the namespace.
+# It adds a second rclone remote pointing at RustFS using the rustfs-credentials secret.
+#
+# Usage:
+#   kubectl -n biodiversity apply -f migration-job.yaml
+#   kubectl -n biodiversity logs -f job/rustfs-migrate
+#   kubectl -n biodiversity delete job rustfs-migrate   # cleanup when done
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rustfs-migrate
+  namespace: biodiversity
+spec:
+  # No retries — if something fails, examine logs and rerun manually.
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      priorityClassName: opportunistic
+      restartPolicy: Never
+
+      nodeSelector:
+        # Run on our node so transfer is local-network fast and data lands close to RustFS.
+        kubernetes.io/hostname: stratus1.nrp-espm.berkeley.edu
+
+      containers:
+        - name: migrate
+          image: rclone/rclone:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Write a combined rclone config with both remotes.
+              # 'ceph'   = source (NRP Ceph S3, uses the existing aws secret)
+              # 'rustfs' = destination (our new RustFS instance)
+              mkdir -p /root/.config/rclone
+              cat > /root/.config/rclone/rclone.conf << EOF
+              [ceph]
+              type = s3
+              provider = Ceph
+              env_auth = false
+              access_key_id = ${AWS_ACCESS_KEY_ID}
+              secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+              endpoint = https://s3-west.nrp-nautilus.io
+              region = us-east-1
+
+              [rustfs]
+              type = s3
+              provider = Other
+              env_auth = false
+              access_key_id = ${RUSTFS_ACCESS_KEY}
+              secret_access_key = ${RUSTFS_SECRET_KEY}
+              endpoint = http://rustfs-s3.biodiversity.svc.cluster.local
+              region = us-east-1
+              force_path_style = true
+              EOF
+
+              echo "=== Listing source buckets ==="
+              rclone lsd ceph:
+
+              echo ""
+              echo "=== Starting migration ==="
+              # Sync each bucket. Add/remove bucket names as needed.
+              # --checksum verifies integrity; --progress shows live stats.
+              # Running sequentially keeps it simple and avoids overwhelming either endpoint.
+              for BUCKET in $(rclone lsd ceph: | awk '{print $5}'); do
+                echo ""
+                echo "--- Syncing bucket: $BUCKET ---"
+                rclone sync \
+                  ceph:${BUCKET} \
+                  rustfs:${BUCKET} \
+                  --checksum \
+                  --transfers 16 \
+                  --checkers 32 \
+                  --progress \
+                  --stats-one-line \
+                  --log-level INFO
+              done
+
+              echo ""
+              echo "=== Migration complete ==="
+              rclone lsd rustfs:
+
+          env:
+            # Source: NRP Ceph S3 master credentials
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws
+                  key: AWS_SECRET_ACCESS_KEY
+            # Destination: RustFS admin credentials
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rustfs-credentials
+                  key: RUSTFS_ACCESS_KEY
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rustfs-credentials
+                  key: RUSTFS_SECRET_KEY
+
+          resources:
+            requests:
+              cpu: "4"
+              memory: "4Gi"
+            limits:
+              cpu: "4"
+              memory: "4Gi"

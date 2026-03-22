@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rustfs-s3
+  namespace: biodiversity
+  annotations:
+    # CORS — required for browser-based S3 clients, presigned URL fetches, etc.
+    haproxy-ingress.github.io/cors-enable: "true"
+    haproxy-ingress.github.io/cors-allow-origin: "*"
+    haproxy-ingress.github.io/cors-allow-methods: "GET, PUT, POST, DELETE, HEAD, OPTIONS"
+    haproxy-ingress.github.io/cors-allow-headers: "Authorization,Content-Type,Content-MD5,X-Amz-Content-Sha256,X-Amz-Date,X-Amz-Security-Token,X-Amz-User-Agent,X-Amz-Request-Id"
+    haproxy-ingress.github.io/cors-allow-credentials: "true"
+    haproxy-ingress.github.io/cors-max-age: "86400"
+    # Extended timeouts: large object uploads can take minutes.
+    haproxy-ingress.github.io/timeout-server: "300s"
+    haproxy-ingress.github.io/timeout-tunnel: "600s"
+    # No body size limit — required for large object PUT/multipart upload.
+    haproxy-ingress.github.io/proxy-body-size: "0"
+spec:
+  ingressClassName: haproxy
+  tls:
+    - hosts:
+        - s3-berkeley.nrp-nautilus.io
+  rules:
+    - host: s3-berkeley.nrp-nautilus.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rustfs-s3
+                port:
+                  number: 80

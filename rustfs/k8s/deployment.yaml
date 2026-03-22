@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rustfs
+  namespace: biodiversity
+  labels:
+    k8s-app: rustfs
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: rustfs
+  # Recreate (not RollingUpdate) because the hostPath volume is ReadWriteOnce
+  # and a rolling update would try to start a new pod before the old one releases it.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        k8s-app: rustfs
+    spec:
+      # ── Pin to our owned node ───────────────────────────────────────────
+      nodeSelector:
+        kubernetes.io/hostname: stratus1.nrp-espm.berkeley.edu
+
+      # No priorityClassName here — opportunistic is for batch CPU jobs.
+      # A whitelisted long-running Deployment on our own node doesn't need it
+      # and we don't want the pod preempted away from our storage.
+
+      containers:
+        - name: rustfs
+          image: rustfs/rustfs:latest
+          imagePullPolicy: Always
+
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+
+          env:
+            # Storage — single directory on the local NVMe drive.
+            - name: RUSTFS_VOLUMES
+              value: "/data"
+            # Network
+            - name: RUSTFS_ADDRESS
+              value: ":9000"
+            - name: RUSTFS_CONSOLE_ADDRESS
+              value: ":9001"
+            - name: RUSTFS_CONSOLE_ENABLE
+              value: "true"
+            # Region must match what clients expect.
+            - name: RUSTFS_REGION
+              value: "us-east-1"
+            # Virtual-hosted-style domain so AWS SDKs can use bucket.s3-berkeley.nrp-nautilus.io
+            - name: RUSTFS_SERVER_DOMAINS
+              value: "s3-berkeley.nrp-nautilus.io"
+            # CORS — allow all origins so browser-based tools work.
+            - name: RUSTFS_CORS_ALLOWED_ORIGINS
+              value: "*"
+            - name: RUSTFS_CONSOLE_CORS_ALLOWED_ORIGINS
+              value: "*"
+            # Object cache — use a chunk of the plentiful RAM.
+            - name: RUSTFS_OBJECT_CACHE_ENABLE
+              value: "true"
+            - name: RUSTFS_OBJECT_CACHE_TTL_SECS
+              value: "300"
+
+            # Admin credentials — from the rustfs-credentials secret.
+            # See secret.yaml for creation instructions.
+            - name: RUSTFS_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rustfs-credentials
+                  key: RUSTFS_ACCESS_KEY
+            - name: RUSTFS_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rustfs-credentials
+                  key: RUSTFS_SECRET_KEY
+
+          volumeMounts:
+            - name: data
+              mountPath: /data
+
+          # ── Resources ─────────────────────────────────────────────────────
+          # The NVMe drive is 7.68 TB; RustFS can use all of /mnt/nvme/rustfs.
+          # We own this node, so request meaningful CPU/RAM for good throughput.
+          # Adjust based on observed usage — NRP policy requires requests ≈ actual use.
+          resources:
+            requests:
+              cpu: "8"
+              memory: "16Gi"
+            limits:
+              cpu: "8"
+              memory: "16Gi"
+
+          # ── Health checks ─────────────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9000
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+
+      # ── Volumes ───────────────────────────────────────────────────────────
+      volumes:
+        - name: data
+          hostPath:
+            # The 7.68 TB PCIe4 NVMe drive on stratus1.
+            path: /mnt/nvme/rustfs
+            # DirectoryOrCreate: creates the directory if it doesn't exist.
+            type: DirectoryOrCreate

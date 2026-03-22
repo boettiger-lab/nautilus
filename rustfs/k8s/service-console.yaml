@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rustfs-console
+  namespace: biodiversity
+spec:
+  selector:
+    k8s-app: rustfs
+  ports:
+    - name: console
+      port: 80
+      targetPort: 9001
