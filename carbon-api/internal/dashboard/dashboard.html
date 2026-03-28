@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NRP Carbon Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a;
+    --text:#e2e8f0; --muted:#64748b;
+    --green:#22c55e; --yellow:#eab308; --orange:#f97316; --red:#ef4444;
+    --blue:#3b82f6; --accent:#6366f1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh;}
+
+  header{padding:1.1rem 2rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+  header h1{font-size:1.05rem;font-weight:600;letter-spacing:.02em;white-space:nowrap;}
+  header h1 span{color:var(--accent);}
+  .header-right{display:flex;align-items:center;gap:1rem;}
+  #status{font-size:.75rem;color:var(--muted);}
+  #status.ok::before{content:"● ";color:var(--green);}
+  #status.err::before{content:"● ";color:var(--red);}
+  header a.method-link{font-size:.75rem;color:var(--muted);text-decoration:none;border:1px solid var(--border);border-radius:4px;padding:.25rem .6rem;}
+  header a.method-link:hover{color:var(--text);border-color:var(--muted);}
+
+  main{padding:1.5rem 2rem;max-width:1400px;margin:0 auto;}
+
+  .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.85rem;margin-bottom:1.75rem;}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:.9rem 1.1rem;}
+  .stat-label{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;}
+  .stat-value{font-size:1.5rem;font-weight:700;line-height:1;}
+  .stat-unit{font-size:.7rem;color:var(--muted);margin-top:.2rem;}
+
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;flex-wrap:wrap;gap:.5rem;}
+  .section-head h2{font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+
+  .range-tabs{display:flex;gap:.35rem;}
+  .range-tab{font-size:.72rem;padding:.25rem .65rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+  .range-tab:hover{color:var(--text);border-color:var(--muted);}
+  .range-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  .chart-wrap{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.2rem;margin-bottom:1.75rem;}
+  .chart-wrap canvas{max-height:240px;}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:.9rem;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:.75rem;padding:1.1rem;border-left:3px solid var(--border);}
+  .card.ratio-great{border-left-color:var(--green);}   /* < 50% of commercial */
+  .card.ratio-good {border-left-color:#86efac;}         /* 50–80% of commercial */
+  .card.ratio-warn {border-left-color:var(--orange);}   /* 80–100%: at commercial level */
+  .card.ratio-bad  {border-left-color:var(--red);}      /* > 100%: worse than commercial */
+  .card.ratio-idle {border-left-color:var(--border);}   /* no token data (idle) */
+  .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.65rem;}
+  .model-name{font-size:.83rem;font-weight:600;line-height:1.3;word-break:break-all;}
+  .model-name.unknown{color:var(--muted);font-style:italic;}
+  .badge{font-size:.63rem;padding:.18rem .45rem;border-radius:999px;white-space:nowrap;margin-left:.4rem;flex-shrink:0;font-weight:600;}
+  .badge-active{background:rgba(34,197,94,.15);color:var(--green);}
+  .badge-idle  {background:rgba(100,116,139,.15);color:var(--muted);}
+  .card-meta{font-size:.7rem;color:var(--muted);margin-bottom:.85rem;}
+  .card-meta span+span::before{content:" · ";}
+  .metrics{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;}
+  .metric{background:rgba(255,255,255,.03);border-radius:.45rem;padding:.55rem .7rem;}
+  .metric-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.15rem;}
+  .metric-value{font-size:1rem;font-weight:700;}
+  .metric-unit{font-size:.62rem;color:var(--muted);}
+  .metric-value.green {color:var(--green);}
+  .metric-value.yellow{color:var(--yellow);}
+  .metric-value.orange{color:var(--orange);}
+  .metric-value.red   {color:var(--red);}
+  .intensity-row{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border);display:flex;align-items:center;gap:.45rem;font-size:.7rem;color:var(--muted);}
+  .intensity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+  /* CO₂/token comparison bar embedded in card */
+  .token-cmp{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border);}
+  .token-cmp-label{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem;}
+  .token-cmp-track{position:relative;height:18px;background:rgba(255,255,255,.04);border-radius:3px;overflow:visible;}
+  /* shaded band for commercial estimate range */
+  .token-cmp-band{position:absolute;top:0;height:100%;background:rgba(99,102,241,.15);border-radius:3px;}
+  /* NRP measured bar */
+  .token-cmp-bar{position:absolute;top:2px;height:14px;border-radius:2px;transition:width .4s;}
+  /* commercial midpoint tick */
+  .token-cmp-tick{position:absolute;top:-3px;width:2px;height:24px;background:#6366f1;border-radius:1px;}
+  .token-cmp-legend{display:flex;justify-content:space-between;margin-top:.35rem;font-size:.65rem;color:var(--muted);}
+  .token-cmp-ratio{font-size:.72rem;margin-top:.3rem;font-weight:600;}
+  .token-cmp-ratio.better{color:var(--green);}
+  .token-cmp-ratio.worse {color:var(--orange);}
+
+  footer{text-align:center;padding:2rem;font-size:.71rem;color:var(--muted);}
+  footer a{color:var(--muted);}
+
+  /* Light mode overrides */
+  body.light {
+    --bg:#f8fafc; --surface:#ffffff; --border:#e2e8f0;
+    --text:#1e293b; --muted:#64748b;
+  }
+  body.light .metric{background:rgba(0,0,0,.03);}
+  body.light .token-cmp-track{background:rgba(0,0,0,.04);}
+
+  #theme-btn{font-size:.72rem;padding:.25rem .65rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;}
+  #theme-btn:hover{color:var(--text);border-color:var(--muted);}
+</style>
+</head>
+<body>
+<header>
+  <h1>NRP <span>Carbon</span> Dashboard</h1>
+  <div class="header-right">
+    <a class="method-link" href="/methodology">Methodology</a>
+    <button id="theme-btn" onclick="toggleTheme()">Light</button>
+    <span id="status">loading…</span>
+  </div>
+</header>
+
+<main>
+  <div class="summary" id="summary"></div>
+
+  <div class="chart-wrap">
+    <div class="section-head">
+      <h2>Cluster CO₂ emissions over time</h2>
+      <div class="range-tabs">
+        <button class="range-tab" data-range="24h">24 h</button>
+        <button class="range-tab active" data-range="7d">7 d</button>
+        <button class="range-tab" data-range="30d">30 d</button>
+      </div>
+    </div>
+    <canvas id="lineChart"></canvas>
+  </div>
+
+  <div class="chart-wrap">
+    <div class="section-head"><h2>CO₂ / token by model — active models vs. commercial estimate</h2></div>
+    <canvas id="barChart"></canvas>
+  </div>
+
+  <div class="section-head" style="margin-top:1.75rem">
+    <h2>Models</h2>
+  </div>
+  <div class="cards" id="cards"></div>
+</main>
+
+<footer>
+  Data from <a href="https://prometheus.nrp-nautilus.io" target="_blank">NRP Prometheus</a> (DCGM GPU sensors) ·
+  Grid intensity: <a href="https://www.epa.gov/egrid" target="_blank">EPA eGRID 2022</a> ·
+  <a href="/methodology">Methodology &amp; References</a> ·
+  Refreshes every 30 s
+</footer>
+
+<script>
+const API    = '/api/v1/carbon';
+const TS_API = '/api/v1/carbon/timeseries';
+let barChart  = null;
+let lineChart = null;
+let currentRange = '7d';
+
+function chartColors() {
+  const light = document.body.classList.contains('light');
+  return {
+    grid:   light ? '#e2e8f0' : '#2a2d3a',
+    tick:   light ? '#64748b' : '#64748b',
+    legend: light ? '#334155' : '#94a3b8',
+  };
+}
+
+function applyChartTheme() {
+  const c = chartColors();
+  [barChart, lineChart].forEach(ch => {
+    if (!ch) return;
+    Object.values(ch.options.scales).forEach(s => {
+      if (s.grid)  s.grid.color   = c.grid;
+      if (s.ticks) s.ticks.color  = c.tick;
+      if (s.title) s.title.color  = c.tick;
+    });
+    if (ch.options.plugins.legend?.labels) ch.options.plugins.legend.labels.color = c.legend;
+    if (ch.options.plugins.title) ch.options.plugins.title.color = c.tick;
+    ch.update('none');
+  });
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  document.getElementById('theme-btn').textContent = isLight ? 'Dark' : 'Light';
+  applyChartTheme();
+}
+
+function initTheme() {
+  if (localStorage.getItem('theme') === 'light') {
+    document.body.classList.add('light');
+    document.getElementById('theme-btn').textContent = 'Dark';
+  }
+}
+initTheme();
+
+// Commercial frontier LLM benchmark for CO₂/token.
+// Derived from IEA Electricity 2024 estimate of ~5 Wh/query for a ChatGPT-class query,
+// assuming 300–500 output tokens and the US average grid intensity (0.394 kg CO₂/kWh).
+// 5 Wh × 0.394 kg/kWh × 1e6 mg/kg / 400 tokens ≈ 4.9 mg CO₂/token.
+// Range reflects uncertainty in query length (300–1000 tokens) and model size.
+// No direct measurement of frontier commercial models is publicly available.
+// Sources: IEA (2024); Luccioni et al. FAccT (2024); Shehabi et al. LBL (2024).
+const COMMERCIAL_MG_PER_TOKEN_LO  = 2.0;
+const COMMERCIAL_MG_PER_TOKEN_MID = 4.9;
+const COMMERCIAL_MG_PER_TOKEN_HI  = 9.8;
+
+// Card border class based on CO₂/token ratio vs commercial estimate.
+// orange = at the commercial (GPT) level; red = worse than commercial.
+function tokenRatioClass(m) {
+  if (!m.co2_mg_per_token) return 'ratio-idle';
+  const r = m.co2_mg_per_token / COMMERCIAL_MG_PER_TOKEN_MID;
+  if (r < 0.5)  return 'ratio-great';
+  if (r < 0.8)  return 'ratio-good';
+  if (r < 1.0)  return 'ratio-warn';
+  return 'ratio-bad';
+}
+function intensityColor(kg){ return kg<=.25?'#22c55e':kg<=.40?'#eab308':kg<=.55?'#f97316':'#ef4444'; }
+function co2Color(gph){ return gph<100?'green':gph<300?'yellow':gph<600?'orange':'red'; }
+function fmt(n,d=1){ return (n==null||isNaN(n))?'—':n.toFixed(d); }
+function shortModel(name){ if(!name)return null; const p=name.split('/'); return p[p.length-1]; }
+
+async function load() {
+  const st = document.getElementById('status');
+  try {
+    const res = await fetch(API);
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    render(data);
+    st.textContent = 'Updated ' + new Date(data.updated_at).toLocaleTimeString();
+    st.className = 'ok';
+  } catch(e) {
+    st.textContent = 'Error: ' + e.message;
+    st.className = 'err';
+  }
+}
+
+async function loadTimeSeries(range) {
+  try {
+    const res = await fetch(`${TS_API}?range=${range}`);
+    const data = await res.json();
+    renderTimeSeries(data);
+  } catch(e) { console.warn('timeseries:', e); }
+}
+
+function render(data) {
+  const models = (data.models||[]).slice().sort((a,b)=>b.co2_grams_per_hour-a.co2_grams_per_hour);
+
+  const totalPower   = models.reduce((s,m)=>s+m.power_watts,0);
+  const totalCO2hr   = models.reduce((s,m)=>s+m.co2_grams_per_hour,0);
+  const totalGPUs    = models.reduce((s,m)=>s+m.gpu_count,0);
+  const activeN      = models.filter(m=>m.tokens_per_sec>0.1).length;
+  const avgIntensity = models.length ? models.reduce((s,m)=>s+m.carbon_intensity_kg_per_kwh,0)/models.length : 0;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="stat-label">Total Power</div><div class="stat-value">${fmt(totalPower/1000,2)}</div><div class="stat-unit">kilowatts</div></div>
+    <div class="stat"><div class="stat-label">CO₂ / hour</div><div class="stat-value">${fmt(totalCO2hr/1000,2)}</div><div class="stat-unit">kg CO₂e</div></div>
+    <div class="stat"><div class="stat-label">CO₂ / day</div><div class="stat-value">${fmt(totalCO2hr*24/1000,1)}</div><div class="stat-unit">kg CO₂e</div></div>
+    <div class="stat"><div class="stat-label">Active GPUs</div><div class="stat-value">${totalGPUs}</div><div class="stat-unit">across ${models.length} models</div></div>
+    <div class="stat"><div class="stat-label">Active Models</div><div class="stat-value">${activeN}</div><div class="stat-unit">generating tokens</div></div>
+    <div class="stat"><div class="stat-label">Avg Grid Intensity</div><div class="stat-value">${fmt(avgIntensity,3)}</div><div class="stat-unit">kg CO₂/kWh</div></div>
+  `;
+
+  // CO₂/token by model bar chart — active models only
+  const activeModels = models.filter(m => m.co2_mg_per_token > 0)
+                             .sort((a,b) => a.co2_mg_per_token - b.co2_mg_per_token);
+  const labels  = activeModels.map(m => shortModel(m.model_name) || m.container);
+  const co2vals = activeModels.map(m => m.co2_mg_per_token);
+  const colors  = activeModels.map(m => {
+    const r = m.co2_mg_per_token / COMMERCIAL_MG_PER_TOKEN_MID;
+    return r < 0.8 ? '#22c55e' : r < 1.0 ? '#f97316' : '#ef4444';
+  });
+  if (barChart) {
+    barChart.data.labels = labels;
+    barChart.data.datasets[0].data = co2vals;
+    barChart.data.datasets[0].backgroundColor = colors;
+    barChart.update();
+  } else {
+    const cc0 = chartColors();
+    barChart = new Chart(document.getElementById('barChart'), {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'mg CO₂/token', data: co2vals, backgroundColor: colors, borderRadius: 4 }] },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.parsed.y.toFixed(3)} mg CO₂/token` } }
+        },
+        scales: {
+          x: { ticks:{color:cc0.tick,font:{size:10}}, grid:{color:cc0.grid} },
+          y: { ticks:{color:cc0.tick,font:{size:10}}, grid:{color:cc0.grid},
+               title:{display:true,text:'mg CO₂ / token',color:cc0.tick,font:{size:10}},
+               beginAtZero:true }
+        }
+      }
+    });
+  }
+
+  // Model cards
+  document.getElementById('cards').innerHTML = models.map(m=>{
+    const active = m.tokens_per_sec > 0.1;
+    const ic  = tokenRatioClass(m);
+    const cc  = co2Color(m.co2_grams_per_hour);
+    const dot = intensityColor(m.carbon_intensity_kg_per_kwh);
+    const institution = m.node ? m.node.split('.').slice(-3).join('.') : '—';
+
+    // Build CO₂/token comparison section for active models
+    let tokenCmp = '';
+    if (m.co2_mg_per_token > 0) {
+      const v   = m.co2_mg_per_token;
+      const lo  = COMMERCIAL_MG_PER_TOKEN_LO;
+      const mid = COMMERCIAL_MG_PER_TOKEN_MID;
+      const hi  = COMMERCIAL_MG_PER_TOKEN_HI;
+      // Scale: 0..max where max = highest of NRP or commercial hi, plus 10% headroom
+      const scale  = Math.max(v, hi) * 1.1;
+      const nrpPct = Math.min(v   / scale * 100, 100).toFixed(1);
+      const loPct  = (lo  / scale * 100).toFixed(1);
+      const hiPct  = (hi  / scale * 100).toFixed(1);
+      const midPct = (mid / scale * 100).toFixed(1);
+      const ratio  = v / mid;
+      const barColor = v < mid ? '#22c55e' : v < hi ? '#eab308' : '#f97316';
+      const ratioClass = v < mid ? 'better' : 'worse';
+      const ratioText  = v < mid
+        ? `${(mid/v).toFixed(1)}× less CO₂/token than commercial est.`
+        : `${ratio.toFixed(1)}× commercial est.`;
+      tokenCmp = `
+        <div class="token-cmp">
+          <div class="token-cmp-label">CO₂ / token vs. commercial</div>
+          <div class="token-cmp-track">
+            <div class="token-cmp-band"  style="left:${loPct}%;width:${(hiPct-loPct).toFixed(1)}%"></div>
+            <div class="token-cmp-bar"   style="width:${nrpPct}%;background:${barColor}"></div>
+            <div class="token-cmp-tick"  style="left:${midPct}%"></div>
+          </div>
+          <div class="token-cmp-legend">
+            <span>NRP: ${v.toFixed(3)} mg/token</span>
+            <span style="color:#6366f1">▏commercial est. ${mid} mg/token</span>
+          </div>
+          <div class="token-cmp-ratio ${ratioClass}">${ratioText}</div>
+        </div>`;
+    }
+
+    return `
+    <div class="card ${ic}">
+      <div class="card-header">
+        <div class="model-name ${m.model_name?'':'unknown'}">${m.model_name||m.container}</div>
+        <span class="badge ${active?'badge-active':'badge-idle'}">${active?'active':'idle'}</span>
+      </div>
+      <div class="card-meta">
+        <span>${m.gpu_count}× ${m.gpu_hardware||'—'}</span>
+        <span>${institution}</span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">CO₂ / hr</div><div class="metric-value ${cc}">${fmt(m.co2_grams_per_hour)}</div><div class="metric-unit">grams</div></div>
+        <div class="metric"><div class="metric-label">GPU Power</div><div class="metric-value">${fmt(m.power_watts)}</div><div class="metric-unit">watts</div></div>
+        <div class="metric"><div class="metric-label">CO₂ / token</div><div class="metric-value">${m.co2_mg_per_token?fmt(m.co2_mg_per_token,3):'—'}</div><div class="metric-unit">mg CO₂</div></div>
+        <div class="metric"><div class="metric-label">Tokens / sec</div><div class="metric-value">${active?fmt(m.tokens_per_sec):'—'}</div><div class="metric-unit">tok/s</div></div>
+      </div>
+      ${tokenCmp}
+      <div class="intensity-row">
+        <span class="intensity-dot" style="background:${dot}"></span>
+        ${m.carbon_intensity_kg_per_kwh} kg CO₂/kWh · ${m.node||'—'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// CO₂/token over time — only points where tokens were being generated.
+function renderTimeSeries(data) {
+  const pts = data.points || [];
+  if (!pts.length) return;
+
+  const rangeLabel = {'24h':'past 24 hours','7d':'past 7 days','30d':'past 30 days'}[currentRange]||currentRange;
+
+  const mkLabel = p => {
+    const d = new Date(p.t * 1000);
+    if (currentRange === '24h') return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    if (currentRange === '7d')  return d.toLocaleDateString([],{month:'short',day:'numeric'}) + ' ' + d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleDateString([],{month:'short',day:'numeric'});
+  };
+
+  // Use CO₂/token where available; show null (gap) during idle periods
+  const tokenPts  = pts.filter(p => p.co2_mg_per_token > 0);
+  const hasTokens = tokenPts.length > 0;
+
+  const datasets = hasTokens ? [
+    {
+      label: 'Cluster avg CO₂/token (mg)',
+      data: pts.map(p => p.co2_mg_per_token > 0 ? +p.co2_mg_per_token.toFixed(3) : null),
+      borderColor: '#22c55e',
+      backgroundColor: 'rgba(34,197,94,0.08)',
+      fill: true, tension: 0.3, pointRadius: 0, spanGaps: false,
+    },
+  ] : [
+    // Fallback: show CO₂/hr when no token data in range
+    {
+      label: 'CO₂ rate (kg/hr)',
+      data: pts.map(p => +(p.co2_grams_per_hour/1000).toFixed(4)),
+      borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)',
+      fill: true, tension: 0.3, pointRadius: 0,
+    }
+  ];
+
+  const avgToken = hasTokens
+    ? (tokenPts.reduce((s,p)=>s+p.co2_mg_per_token,0)/tokenPts.length).toFixed(2) + ' mg CO₂/token avg'
+    : 'no active generation in range — showing CO₂/hr';
+
+  const yTitle = hasTokens ? 'mg CO₂ / token' : 'kg CO₂ / hr';
+  const tooltipFmt = hasTokens
+    ? c => ` ${c.dataset.label}: ${c.parsed.y != null ? c.parsed.y.toFixed(3) : '—'} mg/token`
+    : c => ` ${c.parsed.y.toFixed(3)} kg CO₂/hr`;
+
+  const chartData = { labels: pts.map(mkLabel), datasets };
+  const lc = chartColors();
+  const options = {
+    responsive: true,
+    interaction: { mode:'index', intersect:false },
+    plugins: {
+      legend: { labels:{ color:lc.legend, font:{size:10}, boxWidth:12 } },
+      title: { display:true, text:`${rangeLabel} — ${avgToken}`,
+               color:lc.tick, font:{size:11, weight:'normal'}, padding:{bottom:8} },
+      tooltip: { callbacks: { label: tooltipFmt } }
+    },
+    scales: {
+      x: { ticks:{color:lc.tick,font:{size:10},maxTicksLimit:10}, grid:{color:lc.grid} },
+      y: { ticks:{color:lc.tick,font:{size:10}}, grid:{color:lc.grid},
+           title:{display:true, text:yTitle, color:lc.tick, font:{size:10}},
+           beginAtZero:true }
+    }
+  };
+
+  if (lineChart) {
+    lineChart.data = chartData;
+    lineChart.options.plugins.title.text = `${rangeLabel} — ${avgToken}`;
+    lineChart.update('none');
+  } else {
+    lineChart = new Chart(document.getElementById('lineChart'), { type:'line', data:chartData, options });
+  }
+}
+
+document.querySelectorAll('.range-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRange = btn.dataset.range;
+    if (lineChart) { lineChart.destroy(); lineChart = null; }
+    loadTimeSeries(currentRange);
+  });
+});
+
+load();
+loadTimeSeries(currentRange);
+setInterval(load, 30000);
+setInterval(() => loadTimeSeries(currentRange), 300000);
+</script>
+</body>
+</html>

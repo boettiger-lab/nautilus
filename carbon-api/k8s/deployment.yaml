@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: carbon-api
+  namespace: biodiversity
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: carbon-api
+  template:
+    metadata:
+      labels:
+        app: carbon-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: carbon-api
+          image: ghcr.io/boettiger-lab/carbon-api:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PROMETHEUS_URL
+              value: "https://prometheus.nrp-nautilus.io"
+            - name: SCRAPE_INTERVAL
+              value: "30s"
+            - name: LISTEN_ADDR
+              value: ":8080"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 30
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: feature.node.kubernetes.io/pci-10de.present
+                    operator: NotIn
+                    values: ["true"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: carbon-api
+  namespace: biodiversity
+spec:
+  selector:
+    app: carbon-api
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: carbon-api
+  namespace: biodiversity
+  annotations:
+    haproxy-ingress.github.io/cors-enable: "true"
+    haproxy-ingress.github.io/cors-allow-origin: "*"
+    haproxy-ingress.github.io/cors-allow-methods: "GET, OPTIONS"
+    haproxy-ingress.github.io/cors-allow-headers: "Content-Type"
+    haproxy-ingress.github.io/cors-max-age: "86400"
+spec:
+  ingressClassName: haproxy
+  tls:
+    - hosts:
+        - carbon-api.nrp-nautilus.io
+  rules:
+    - host: carbon-api.nrp-nautilus.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: carbon-api
+                port:
+                  number: 80

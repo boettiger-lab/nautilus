@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Methodology — NRP Carbon Dashboard</title>
+<style>
+  :root { --bg:#0f1117; --surface:#1a1d27; --border:#2a2d3a; --text:#e2e8f0; --muted:#64748b; --accent:#6366f1; --green:#22c55e; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; line-height:1.7; }
+  header { padding:1.25rem 2rem; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:1rem; }
+  header a { color:var(--muted); text-decoration:none; font-size:0.85rem; }
+  header a:hover { color:var(--text); }
+  header h1 { font-size:1.1rem; font-weight:600; }
+  header h1 span { color:var(--accent); }
+  main { max-width:860px; margin:0 auto; padding:2.5rem 2rem; }
+  h2 { font-size:1.2rem; font-weight:600; margin:2rem 0 0.75rem; color:var(--text); }
+  h2:first-child { margin-top:0; }
+  h3 { font-size:0.95rem; font-weight:600; margin:1.5rem 0 0.5rem; color:var(--text); }
+  p { color:#cbd5e1; margin-bottom:0.75rem; }
+  a { color:var(--accent); }
+  code { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:0.1em 0.4em; font-size:0.875em; font-family:monospace; }
+  pre { background:var(--surface); border:1px solid var(--border); border-radius:0.5rem; padding:1rem 1.25rem; overflow-x:auto; margin:1rem 0; }
+  pre code { background:none; border:none; padding:0; font-size:0.85rem; }
+  table { width:100%; border-collapse:collapse; margin:1rem 0; font-size:0.875rem; }
+  th { text-align:left; padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); color:var(--muted); font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.05em; }
+  td { padding:0.5rem 0.75rem; border-bottom:1px solid rgba(255,255,255,0.04); color:#cbd5e1; }
+  tr:last-child td { border-bottom:none; }
+  .callout { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:0.5rem; padding:1rem 1.25rem; margin:1rem 0; }
+  .callout p:last-child { margin-bottom:0; }
+  footer { text-align:center; padding:2rem; font-size:0.75rem; color:var(--muted); border-top:1px solid var(--border); margin-top:3rem; }
+</style>
+</head>
+<body>
+<header>
+  <a href="/">← Dashboard</a>
+  <h1>NRP <span>Carbon</span> — Methodology</h1>
+</header>
+<main>
+
+<h2>Overview</h2>
+<p>
+  This dashboard estimates the carbon footprint of large language model (LLM) inference
+  running on the <a href="https://nrp.ai" target="_blank">National Research Platform (NRP) Nautilus</a> cluster.
+  All measurements are derived passively from existing telemetry — no instrumentation of
+  the LLM services is required.
+</p>
+
+<div class="callout">
+  <p><strong>Key principle:</strong> Carbon = Energy × Grid Intensity. We measure GPU energy
+  directly from hardware sensors already reporting to the cluster's Prometheus instance,
+  then multiply by published grid carbon intensity for each node's location.</p>
+</div>
+
+<h2>Step 1 — Measuring GPU Power</h2>
+<p>
+  GPU power draw is read from
+  <a href="https://github.com/NVIDIA/dcgm-exporter" target="_blank">NVIDIA DCGM Exporter</a>
+  (<em>Data Center GPU Manager</em>), which runs as a DaemonSet on every GPU node in the
+  NRP cluster. DCGM reads the hardware power sensor via NVML
+  (<code>nvmlDeviceGetPowerUsage</code>) and exports it to Prometheus as:
+</p>
+<pre><code>DCGM_FI_DEV_POWER_USAGE{namespace, container, Hostname, ...}  # watts, per GPU</code></pre>
+<p>
+  We aggregate all GPUs belonging to each LLM pod using a PromQL sum:
+</p>
+<pre><code>sum by (namespace, container, Hostname) (
+  DCGM_FI_DEV_POWER_USAGE{namespace=~"nrp-llm|sdsc-llm"}
+)</code></pre>
+<p>
+  This gives total instantaneous GPU power in <strong>watts</strong> for each deployed model.
+  Measurements are scraped every 30 seconds and averaged over the display window.
+</p>
+<div class="callout">
+  <p><strong>Limitation:</strong> We measure <em>GPU power only</em>. CPU, RAM, storage, and
+  networking power are not included. For GPU-heavy inference workloads this typically
+  represents 70–85% of total server power. A full datacenter PUE factor (usually 1.1–1.5)
+  is also not applied. Our figures are therefore conservative underestimates of total
+  facility energy.</p>
+</div>
+
+<h2>Step 2 — Token Generation Rate</h2>
+<p>
+  Token throughput is read from vLLM's built-in Prometheus metrics, specifically the
+  5-minute rolling rate of output tokens:
+</p>
+<pre><code>sum by (namespace, container, model_name) (
+  rate(vllm:generation_tokens_total[5m])
+)</code></pre>
+<p>
+  This enables the <strong>CO₂ per token</strong> metric, which is only reported when the
+  model is actively generating (rate &gt; 0.1 tok/s).
+</p>
+
+<h2>Step 3 — Carbon Intensity by Grid Location</h2>
+<p>
+  NRP nodes are hosted at universities and research institutions across the United States
+  and internationally. Grid carbon intensity varies substantially by location. We use
+  <a href="https://www.epa.gov/egrid" target="_blank">EPA eGRID 2022 subregion averages</a>
+  matched to each node's hostname:
+</p>
+
+<table>
+  <tr><th>Institution / Region</th><th>Hostname pattern</th><th>eGRID Subregion</th><th>Intensity (kg CO₂/kWh)</th></tr>
+  <tr><td>SDSC, CSUS, Caltech, Humboldt (California)</td><td><code>*.sdsc.*</code>, <code>*.csus.*</code>, <code>*.humboldt.*</code></td><td>CAMX</td><td>0.198</td></tr>
+  <tr><td>Cal State Monterey Bay</td><td><code>*.csumb.*</code></td><td>CAMX</td><td>0.198</td></tr>
+  <tr><td>NYU (New York)</td><td><code>*.nyu.*</code></td><td>NYUP</td><td>0.174</td></tr>
+  <tr><td>UNL (Nebraska)</td><td><code>*.unl.*</code></td><td>MROW</td><td>0.531</td></tr>
+  <tr><td>UT Austin / TACC (Texas)</td><td><code>*.utexas.*</code>, <code>*.tacc.*</code></td><td>ERCO</td><td>0.393</td></tr>
+  <tr><td>Clemson (South Carolina)</td><td><code>*.clemson.*</code></td><td>SRSO</td><td>0.423</td></tr>
+  <tr><td>University of Hawaii</td><td><code>*.hawaii.*</code></td><td>HIOA</td><td>0.702</td></tr>
+  <tr><td>K-State (Kansas)</td><td><code>*.ksu.*</code></td><td>SPSO</td><td>0.555</td></tr>
+  <tr><td>KREONET (South Korea)</td><td><code>*.kreonet.*</code></td><td>Korean grid</td><td>0.459</td></tr>
+  <tr><td><em>All other nodes</em></td><td>—</td><td>US national average</td><td>0.386</td></tr>
+</table>
+
+<h2>Step 4 — Carbon Calculations</h2>
+<p>Three derived metrics are computed:</p>
+
+<h3>CO₂ grams per hour</h3>
+<pre><code>CO₂_g/hr = P_watts × intensity_kg/kWh
+         = P_watts × intensity   # because W × kg/kWh = W × kg/(1000W·h) × 1000 = g/h</code></pre>
+
+<h3>CO₂ milligrams per output token</h3>
+<pre><code>CO₂_mg/token = P_watts × intensity_kg/kWh × (1e6 mg/kg) / (3.6e6 J/kWh) / (tokens/s)
+             = P_watts × intensity × 0.2778 / tokens_per_sec</code></pre>
+
+<h3>Cumulative CO₂ (time-series view)</h3>
+<p>
+  For the weekly/monthly charts, we query the Prometheus range API at hourly resolution,
+  apply the same per-node intensity to each sample, and integrate:
+</p>
+<pre><code>CO₂_kg_cumulative = Σ (P_watts_i × intensity_i × Δt_hrs / 1000)</code></pre>
+
+<h2>Limitations and Future Work</h2>
+<ul style="color:#cbd5e1; padding-left:1.5rem; margin:0.5rem 0 1rem;">
+  <li>CPU, DRAM, and network power are excluded (typically adds 15–30% to total)</li>
+  <li>Datacenter PUE (Power Usage Effectiveness) is not applied (adds 10–50%)</li>
+  <li>Carbon intensity values are annual averages; real-time grid mix varies hour-to-hour</li>
+  <li>Nodes not matching hostname patterns fall back to the US national average</li>
+  <li>The LBL eGRID intensity table will be updated as new annual data is published</li>
+</ul>
+<p>
+  For a more complete lifecycle analysis including training, hardware manufacturing, and
+  cooling overhead, see the references below.
+</p>
+
+<h2>References</h2>
+<table>
+  <tr>
+    <th>Source</th><th>Key contribution</th>
+  </tr>
+  <tr>
+    <td><a href="https://doi.org/10.1145/3630106.3658542" target="_blank">Luccioni, Jernite &amp; Strubell (2024). <em>Power Hungry Processing.</em> ACM FAccT.</a></td>
+    <td>Per-query energy &amp; CO₂ measurements for open LLMs (BLOOMz, Flan-T5, etc.)</td>
+  </tr>
+  <tr>
+    <td><a href="https://arxiv.org/abs/2601.22357" target="_blank">Delavande, Pierrard &amp; Luccioni (2025). <em>Small Talk, Big Impact.</em> arXiv.</a></td>
+    <td>Per-token energy decomposition: prefill vs. decode scaling</td>
+  </tr>
+  <tr>
+    <td><a href="https://arxiv.org/abs/2104.10350" target="_blank">Patterson et al. (2021). <em>Carbon Emissions and Large Neural Network Training.</em> arXiv.</a></td>
+    <td>GPT-3 training energy (1,287 MWh); location &amp; hardware efficiency analysis</td>
+  </tr>
+  <tr>
+    <td><a href="https://arxiv.org/abs/2304.03271" target="_blank">Li et al. (2023). <em>Making AI Less Thirsty.</em> arXiv.</a></td>
+    <td>GPT-3 inference water and energy footprint estimates</td>
+  </tr>
+  <tr>
+    <td><a href="https://eta.lbl.gov/publications/powering-intelligence-analyzing" target="_blank">Shehabi et al. (2024). <em>Powering Intelligence.</em> Lawrence Berkeley National Laboratory.</a></td>
+    <td>US AI data center energy projections; efficiency trajectories</td>
+  </tr>
+  <tr>
+    <td><a href="https://www.iea.org/reports/electricity-2024" target="_blank">IEA (2024). <em>Electricity 2024.</em></a></td>
+    <td>Global data center energy (460 TWh 2022, &gt;1000 TWh by 2026); ChatGPT ≈ 10× Google search</td>
+  </tr>
+  <tr>
+    <td><a href="https://www.epa.gov/egrid" target="_blank">US EPA eGRID (2022).</a></td>
+    <td>Regional grid carbon intensity values used in this dashboard</td>
+  </tr>
+  <tr>
+    <td><a href="https://github.com/mlco2/codecarbon" target="_blank">Lottick et al. — CodeCarbon project.</a></td>
+    <td>Open-source framework for tracking ML carbon emissions; inspiration for this work</td>
+  </tr>
+</table>
+
+<h2>Source Code</h2>
+<p>
+  This dashboard is open source:
+  <a href="https://github.com/boettiger-lab/nautilus" target="_blank">github.com/boettiger-lab/nautilus</a>
+  (carbon-api directory). The carbon intensity lookup table is in
+  <code>internal/carbon/intensity.go</code>.
+</p>
+
+</main>
+<footer>
+  NRP Carbon Dashboard · <a href="/">Back to Dashboard</a>
+</footer>
+</body>
+</html>
