@@ -253,7 +253,7 @@ singleuser:
             display_name: rocker/ml (CPU)
             description: Machine Learning environment for R & python (rocker/ml)
             kubespawner_override:
-              image: "ghcr.io/boettiger-lab/k8s@sha256:08dd6635762d64af709743cc047e02405a3fde5a8f839f131460903b0a689c23"
+              image: "ghcr.io/boettiger-lab/k8s@sha256:c0fe49ad472e0a96803a7ad5085b7b0a61b44050ddcae9ae69aa1cdf60d06b72"
             default: true
           02-speciesnet:
             display_name: SpeciesNet (GPU)
