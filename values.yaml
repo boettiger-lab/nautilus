@@ -61,14 +61,17 @@ hub:
           'AWS_SECRET_ACCESS_KEY': os.environ.get('AWS_SECRET_ACCESS_KEY'),
           'OPENAI_API_KEY': os.environ.get('OPENAI_API_KEY'),
       })
-      # Write env vars to R_HOME/etc/Renviron so RStudio can see them,
-      # and generate the en_US.UTF-8 locale to fix R startup warnings
       c.KubeSpawner.lifecycle_hooks = {
           "postStart": {
               "exec": {
                   "command": ["bash", "-c",
-                      "sudo locale-gen en_US.UTF-8 && "
-                      "/tmp/set_renviron.sh LANG LC_ALL AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY OPENAI_BASE_URL"
+                      # RStudio 2026.05.0 (rocker/ml rebuild 2026-05-31) bakes a
+                      # root-owned 0600 session-rpc-key; rootless rserver (via
+                      # jupyter-rsession-proxy) can't read it. Make it readable.
+                      "sudo chmod a+r /var/lib/rstudio-server/session-rpc-key 2>/dev/null || true; "
+                      # Write secrets to ~/.Renviron so RStudio sees them.
+                      # Use > (truncate) not >> to avoid appending duplicates on every spawn.
+                      "for v in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENAI_API_KEY OPENAI_BASE_URL; do echo \"$v=${!v}\"; done > /home/jovyan/.Renviron"
                   ]
               }
           }
@@ -120,8 +123,8 @@ hub:
         GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
         GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
         OPENAI_BASE_URL: "https://ellm.nrp-nautilus.io/v1"
-        LANG: "en_US.UTF-8"
-        LC_ALL: "en_US.UTF-8"
+        LANG: "C.UTF-8"
+        LC_ALL: "C.UTF-8"
 
   service:
     type: ClusterIP
