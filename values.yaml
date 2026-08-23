@@ -207,6 +207,117 @@ singleuser:
             allow_hidden: true
           FileContentsManager:
             always_delete_dir: true
+    # Point Kilo Code (kilocode.kilo-code, shipped in rocker/ml's
+    # vscode-extensions.txt) at the NRP endpoint. Its baked defaults are
+    # providerID "kilo" / model "kilo-auto/free" -- Kilo's own cloud gateway,
+    # which demands a personal sign-in -- so without this users cannot use it.
+    #
+    # Two halves, because Kilo splits them: the agent engine reads providers from
+    # a kilo.json config file, but which provider/model a *new session* opens on
+    # is VS Code settings state.
+    #
+    # Deliberately here rather than upstream in rocker/ml: generic `docker run`
+    # users of that image should get no NRP default.
+    #
+    # This loads from /usr/local/etc/jupyter (after /etc/jupyter), so it runs
+    # after the base image's own hook -- which still writes the dead
+    # roo-cline.autoImportSettingsPath key. Roo Code was swapped out for Kilo
+    # Code in rocker-org/ml@ccb58507 (2026-07-16) and install_llms.sh was never
+    # updated, so nothing reads that key any more. Drop it as we go.
+    #
+    # NB: the provider config cannot ride in singleuser env vars -- KubeSpawner
+    # runs str.format() over every env value to expand {username}, so JSON braces
+    # raise KeyError and every spawn fails.
+    jupyter_server_config.py:
+        mountPath: /usr/local/etc/jupyter/jupyter_server_config.py
+        stringData: |
+          """Hub-only Kilo Code defaults: open new sessions on NRP, not Kilo Gateway."""
+          import json, logging, os, pathlib
+
+          logger = logging.getLogger(__name__)
+
+          # Kilo Code 7.x replaced Roo's settings-import mechanism with an
+          # opencode-style config (its CLI is a fork of opencode), so this is the
+          # same schema install_llms.sh writes for opencode. Written per-pod under
+          # /tmp rather than into the home PVC so it cannot go stale: every spawn
+          # gets the current provider list. A user's own ./kilo.json still wins --
+          # project config outranks KILO_CONFIG in Kilo's precedence order.
+          #
+          # {env:OPENAI_API_KEY} is resolved by Kilo at read time (KILO_CONFIG
+          # paths are trusted for interpolation), so the key stays in
+          # nrp-llm-secret and is never written to disk.
+          KILO_CONFIG_PATH = pathlib.Path("/tmp/kilo/kilo.json")
+          KILO_CONFIG = {
+              "model": "nrp/deepseek-v4-flash",
+              "provider": {
+                  "nrp": {
+                      "npm": "@ai-sdk/openai-compatible",
+                      "name": "NRP",
+                      "options": {
+                          "baseURL": "https://ellm.nrp-nautilus.io/v1",
+                          "apiKey": "{env:OPENAI_API_KEY}",
+                      },
+                      "models": {
+                          # context/output below are Kilo's context-management
+                          # budget, not the endpoint's ceiling. Measured
+                          # max_model_len on ellm.nrp-nautilus.io 2026-08-22:
+                          # deepseek-v4-flash 1048576, qwen3 1010000,
+                          # glm-5 300000, minimax-m2 204800, kimi 131072.
+                          # Capped at 256k so a long session compacts instead of
+                          # resending a million tokens of prefill per turn on
+                          # shared cluster GPUs. Raise if a class needs it.
+                          "deepseek-v4-flash": {"name": "DeepSeek V4 Flash",
+                                                "limit": {"context": 262144, "output": 32768}},
+                          "qwen3": {"name": "Qwen3",
+                                    "limit": {"context": 262144, "output": 32768}},
+                          "glm-5": {"name": "GLM-5",
+                                    "limit": {"context": 262144, "output": 32768}},
+                          "minimax-m2": {"name": "MiniMax M2",
+                                         "limit": {"context": 204800, "output": 32768}},
+                          "kimi": {"name": "Kimi",
+                                   "limit": {"context": 131072, "output": 16384}},
+                      },
+                  }
+              },
+          }
+
+          VSCODE_DEFAULTS = {
+              "kilo-code.new.model.providerID": "nrp",
+              "kilo-code.new.model.modelID": "deepseek-v4-flash",
+              # Inline autocomplete only accepts kilo/mistral/inception as a
+              # provider -- there is no way to route it at NRP -- so leave it off
+              # rather than have it prompt every user to sign in to Kilo Gateway.
+              "kilo-code.new.autocomplete.enableAutoTrigger": False,
+          }
+
+          def _write_kilo_config():
+              KILO_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+              KILO_CONFIG_PATH.write_text(json.dumps(KILO_CONFIG, indent=2))
+              # code-server and any terminal inherit the jupyter server env, which
+              # is how the base image also hands OPENCODE_CONFIG to opencode.
+              os.environ.setdefault("KILO_CONFIG", str(KILO_CONFIG_PATH))
+
+          def _write_vscode_settings():
+              settings = pathlib.Path.home() / ".local/share/code-server/User/settings.json"
+              settings.parent.mkdir(parents=True, exist_ok=True)
+              try:
+                  current = json.loads(settings.read_text()) if settings.exists() else {}
+              except Exception:
+                  current = {}
+              # Only seed keys the user has not set themselves, so a student who
+              # switches models in the UI keeps their choice across restarts.
+              merged = dict(current)
+              for key, value in VSCODE_DEFAULTS.items():
+                  merged.setdefault(key, value)
+              merged.pop("roo-cline.autoImportSettingsPath", None)
+              if merged != current:
+                  settings.write_text(json.dumps(merged, indent=2))
+
+          for step in (_write_kilo_config, _write_vscode_settings):
+              try:
+                  step()
+              except Exception as exc:
+                  logger.error(f"Kilo Code setup ({step.__name__}) failed: {exc}")
   image:
     name: gitlab-registry.nrp-nautilus.io/cboettig/images
     pullPolicy: IfNotPresent
