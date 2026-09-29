@@ -200,37 +200,76 @@ singleuser:
             allow_hidden: true
           FileContentsManager:
             always_delete_dir: true
-    # Undo the NRP preset for Kilo Code that this hub used to seed. Until
-    # 2026-09 we pointed Kilo at an "nrp" provider backed by a shared
-    # OPENAI_API_KEY; that key is no longer provided (users bring their own,
-    # as rocker-org/ml#61 now assumes), and the provider config lived in /tmp
-    # so it is gone -- but the VS Code settings naming it persist in each
-    # home PVC and would open new sessions on a provider that no longer
-    # exists. Drop them only where they still hold exactly what we seeded.
-    # Safe to delete this file once every active user has respawned.
+    # Hub-only LLM assistant setup, run by the single-user server at start.
+    #
+    # 1. Offer NRP as an opencode provider -- endpoint and model list only, no
+    #    key and no default model, so nothing overrides what a student sets up.
+    #    opencode's /connect picker only lists its built-in catalog, so students
+    #    attach their own key via /connect -> Other -> provider id "nrp". A
+    #    custom provider must declare its models (opencode does not query
+    #    /v1/models), so we fetch the live list from the public endpoint on
+    #    every spawn rather than hardcode one that goes stale. The file lives in
+    #    /tmp and is passed via OPENCODE_CONFIG, which opencode merges with the
+    #    student's own ~/.config/opencode/opencode.json. If the fetch fails the
+    #    server starts normally without it.
+    #
+    # 2. Undo the Kilo Code preset this hub seeded until 2026-09 (an "nrp"
+    #    provider backed by a shared OPENAI_API_KEY, no longer provided). Its
+    #    provider config lived in /tmp and is gone, but the VS Code settings
+    #    naming it persist in home PVCs and would open new Kilo sessions on a
+    #    missing provider. Drop them only where they still hold exactly what we
+    #    seeded. Safe to remove this step once every active user has respawned.
     jupyter_server_config.py:
         mountPath: /usr/local/etc/jupyter/jupyter_server_config.py
         stringData: |
-          """Remove the retired hub-seeded Kilo Code defaults from VS Code settings."""
-          import json, logging, pathlib
+          """Hub-only LLM assistant setup: NRP provider for opencode, retire old Kilo preset."""
+          import json, logging, os, pathlib, urllib.request
 
           logger = logging.getLogger(__name__)
 
-          SEEDED = {
+          NRP_BASE_URL = "https://ellm.nrp-nautilus.io/v1"
+          OPENCODE_CONFIG_PATH = pathlib.Path("/tmp/opencode/nrp.json")
+
+          KILO_SEEDED = {
               "kilo-code.new.model.providerID": "nrp",
               "kilo-code.new.model.modelID": "deepseek-v4-flash",
           }
 
-          try:
+          def _write_opencode_provider():
+              with urllib.request.urlopen(f"{NRP_BASE_URL}/models", timeout=5) as resp:
+                  ids = [m["id"] for m in json.load(resp)["data"]]
+              models = {i: {"name": i} for i in sorted(ids) if "embedding" not in i}
+              config = {
+                  "$schema": "https://opencode.ai/config.json",
+                  "provider": {
+                      "nrp": {
+                          "npm": "@ai-sdk/openai-compatible",
+                          "name": "NRP",
+                          "options": {"baseURL": NRP_BASE_URL},
+                          "models": models,
+                      }
+                  },
+              }
+              OPENCODE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+              OPENCODE_CONFIG_PATH.write_text(json.dumps(config, indent=2))
+              # Terminals and code-server inherit the jupyter server env.
+              os.environ.setdefault("OPENCODE_CONFIG", str(OPENCODE_CONFIG_PATH))
+
+          def _retire_kilo_preset():
               settings = pathlib.Path.home() / ".local/share/code-server/User/settings.json"
-              if settings.exists():
-                  current = json.loads(settings.read_text())
-                  if all(current.get(k) == v for k, v in SEEDED.items()):
-                      for k in SEEDED:
-                          current.pop(k)
-                      settings.write_text(json.dumps(current, indent=2))
-          except Exception as exc:
-              logger.error(f"Kilo Code preset cleanup failed: {exc}")
+              if not settings.exists():
+                  return
+              current = json.loads(settings.read_text())
+              if all(current.get(k) == v for k, v in KILO_SEEDED.items()):
+                  for k in KILO_SEEDED:
+                      current.pop(k)
+                  settings.write_text(json.dumps(current, indent=2))
+
+          for step in (_write_opencode_provider, _retire_kilo_preset):
+              try:
+                  step()
+              except Exception as exc:
+                  logger.error(f"LLM assistant setup ({step.__name__}) failed: {exc}")
   image:
     name: gitlab-registry.nrp-nautilus.io/cboettig/images
     pullPolicy: IfNotPresent
