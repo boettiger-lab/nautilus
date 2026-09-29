@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Troubleshooting · ESPM JupyterHub</title>
+  <meta name="description" content="Fixes for common problems on the ESPM JupyterHub.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">ESPM JupyterHub <span>· UC Berkeley</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="index.html">Getting started</a>
+        <a href="ai.html">AI assistants</a>
+        <a href="help.html" aria-current="page">Troubleshooting</a>
+        <a href="https://espm.nrp-nautilus.io">Open the hub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="card">
+      <h1>Troubleshooting</h1>
+      <p class="lead">Most problems are fixed by stopping your server and starting it again. If that doesn't
+        help, find your symptom below.</p>
+
+      <div class="note">
+        <p><strong>To restart your server:</strong> go to
+          <a href="https://espm.nrp-nautilus.io/hub/home"><code>espm.nrp-nautilus.io/hub/home</code></a>,
+          click <em>Stop My Server</em>, wait for it to stop, then click <em>Start My Server</em>.
+          Files in your home directory are kept.</p>
+      </div>
+
+      <h2>The hub won't load at all</h2>
+      <p>If <code>espm.nrp-nautilus.io</code> shows an error page (for example "503") or doesn't respond,
+        the problem is on our end, not yours. Tell your instructor, including the time and what you saw.</p>
+
+      <h2>My server is stuck starting</h2>
+      <ul>
+        <li>The first start after an update can take several minutes. Give it up to 10.</li>
+        <li>GPU environments and the largest memory options wait for a machine with room. Try a smaller
+          size, or a CPU environment, if it keeps waiting.</li>
+        <li>If it fails or never finishes, go to <code>/hub/home</code>, stop the server, and start it again.</li>
+      </ul>
+
+      <h2>My R session or Python kernel keeps restarting</h2>
+      <p>This usually means you ran out of memory. Save your work, restart the server, and choose a larger
+        memory option. Or work with less data at a time: read only the columns and rows you need, or
+        query files with DuckDB instead of loading them whole.</p>
+
+      <h2>A package I installed is gone</h2>
+      <p>Installed packages don't survive a restart; only your home directory does. Keep a list of what you
+        need in your project (a <code>requirements.txt</code> or an <code>install.R</code> script) and re-run it
+        after starting a server.</p>
+
+      <h2>My server shut down while I was away</h2>
+      <p>Servers idle for about an hour are stopped automatically. Your files are safe; anything that was
+        only in memory is gone. For long terminal jobs, run them inside <code>tmux</code> so they survive your
+        browser disconnecting. That won't stop an idle shutdown, though.</p>
+
+      <h2><code>git push</code> fails</h2>
+      <p>Run <code>gh-scoped-creds</code> again. Its credentials last 8 hours. Also check that the
+        <a href="https://github.com/apps/jupyterhub-gh-creds">GitHub app</a> has access to that repository.
+        See <a href="index.html#github">Using GitHub</a>.</p>
+
+      <h2>An AI assistant says my key is missing or invalid</h2>
+      <ul>
+        <li>For opencode with NRP, check that you saved the key under the provider id <code>nrp</code>:
+          <code>opencode auth list</code>. See <a href="ai.html#gotchas">AI gotchas</a>.</li>
+        <li>Make sure you copied the whole key, with no extra spaces.</li>
+        <li>NRP "overloaded" or rate-limit errors mean the model is busy: wait, or pick another model.</li>
+      </ul>
+
+      <h2>Still stuck?</h2>
+      <p>Ask your instructor or TA. Include what you were doing, what you expected, the exact error message
+        (a screenshot helps), and which environment and interface you chose.</p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>ESPM JupyterHub · UC Berkeley · Hosted on the National Research Platform</span>
+    <a href="https://github.com/boettiger-lab/nautilus">Source on GitHub</a>
+  </footer>
+</body>
+</html>

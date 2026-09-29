@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI assistants · ESPM JupyterHub</title>
+  <meta name="description" content="Setting up Kilo Code, opencode and Posit Assistant with your own NRP or OpenRouter key.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">ESPM JupyterHub <span>· UC Berkeley</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="index.html">Getting started</a>
+        <a href="ai.html" aria-current="page">AI assistants</a>
+        <a href="help.html">Troubleshooting</a>
+        <a href="https://espm.nrp-nautilus.io">Open the hub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="card">
+      <h1>AI assistants</h1>
+      <p class="lead">The default environment includes three AI coding assistants. None of them comes with a
+        key: you get your own (free options below) and connect it once. Your settings are saved in your home
+        directory, so you only do this once.</p>
+
+      <ul class="toc">
+        <li><a href="#key">Get a key</a></li>
+        <li><a href="#kilo">Kilo Code (VS Code)</a></li>
+        <li><a href="#opencode">opencode (terminal)</a></li>
+        <li><a href="#posit">Posit Assistant (RStudio)</a></li>
+        <li><a href="#gotchas">Gotchas</a></li>
+      </ul>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Assistant</th><th>Where</th><th>Setup</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Kilo Code</strong></td><td>VS Code sidebar</td><td>Easiest: add a provider in its settings.</td></tr>
+            <tr><td><strong>opencode</strong></td><td>Any terminal</td><td>One command. NRP is already defined for you.</td></tr>
+            <tr><td><strong>Posit Assistant</strong></td><td>RStudio's AI pane</td><td>Through its settings.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 id="key">Get a key</h2>
+      <p>Pick one. Both work with every assistant here.</p>
+
+      <h3>NRP (free)</h3>
+      <ol>
+        <li>Go to <a href="https://nrp.ai/llmtoken/"><code>nrp.ai/llmtoken</code></a> and sign in with your Berkeley account.</li>
+        <li>Create a token and copy it somewhere safe.</li>
+      </ol>
+      <p>You'll need these values:</p>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><td>Base URL</td><td><code>https://ellm.nrp-nautilus.io/v1</code></td></tr>
+            <tr><td>API key</td><td>your token</td></tr>
+            <tr><td>Model</td><td>for example <code>qwen3</code>, <code>glm-5</code> or <code>kimi</code>.
+              <a href="https://ellm.nrp-nautilus.io/v1/models">Current list</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>NRP's models are shared by researchers across the country. They can be slow or briefly unavailable
+        under heavy load; <a href="https://nrp.ai/llm-status/">nrp.ai/llm-status</a> shows what's up.</p>
+
+      <h3>OpenRouter</h3>
+      <p><a href="https://openrouter.ai">OpenRouter</a> gives you one key for hundreds of models from many
+        companies, including some free ones. Create an account and a key at
+        <a href="https://openrouter.ai/keys"><code>openrouter.ai/keys</code></a>. Paid models charge your
+        account, so check prices before choosing one.</p>
+
+      <div class="note">
+        <p><strong>Keep your key private.</strong> Never paste it into a notebook, script or file you commit to
+          GitHub. Enter it only in the assistant's own setup screen. If a key leaks, delete it and make a new one.</p>
+      </div>
+
+      <h2 id="kilo">Kilo Code (VS Code)</h2>
+      <ol>
+        <li>Open VS Code (<code>/vscode</code>) and click the Kilo Code icon in the left sidebar.</li>
+        <li>Open its settings and add a provider:
+          <ul>
+            <li><strong>OpenRouter</strong>: choose OpenRouter and paste your key.</li>
+            <li><strong>NRP</strong>: choose the <em>OpenAI-compatible</em> provider, then enter the base URL,
+              your token and a model name from the table above.</li>
+          </ul>
+        </li>
+        <li>Pick a model and start a new session.</li>
+      </ol>
+      <p>Kilo's inline autocomplete only works with a few specific services (Kilo's own, Mistral, Inception),
+        not NRP or OpenRouter. Leave it off if Kilo prompts you to sign in for it.</p>
+
+      <h2 id="opencode">opencode (terminal)</h2>
+      <p>opencode runs in any terminal: VS Code, JupyterLab or RStudio.</p>
+
+      <h3>With NRP</h3>
+      <p>NRP is already set up as a provider called <code>nrp</code>, with the current model list. You only add
+        your key:</p>
+      <ol>
+        <li>In a terminal, run:
+          <pre><code>opencode auth login</code></pre>
+        </li>
+        <li>Type <kbd>other</kbd> to search, and choose <strong>Other</strong>. NRP won't be in the list;
+          that's expected.</li>
+        <li>For the provider id, type exactly <code>nrp</code> (lowercase).</li>
+        <li>You'll see <em>"This only stores a credential for nrp – you will need configure it in
+          opencode.json"</em>. Ignore it: that's already done for you.</li>
+        <li>Paste your token.</li>
+      </ol>
+      <p>Then start <code>opencode</code>, type <code>/models</code>, and choose an NRP model. Choose one
+        yourself; otherwise opencode may pick a small model on its own.</p>
+
+      <h3>With OpenRouter</h3>
+      <p>Run <code>opencode auth login</code>, choose <strong>OpenRouter</strong> from the list, and paste your
+        key. Then pick a model with <code>/models</code>.</p>
+
+      <p>Inside opencode, <code>/connect</code> does the same thing as <code>opencode auth login</code>.</p>
+
+      <h2 id="posit">Posit Assistant (RStudio)</h2>
+      <p>Open the AI pane in RStudio and follow its setup to add a provider. Use an OpenAI-compatible provider:
+        for NRP, the base URL and token above; for OpenRouter, base URL <code>https://openrouter.ai/api/v1</code>
+        and your OpenRouter key. See
+        <a href="https://assistant.posit.co">Posit Assistant's documentation</a> for details.</p>
+
+      <h2 id="gotchas">Gotchas</h2>
+      <ul>
+        <li><strong>The provider id must be exactly <code>nrp</code>.</strong> opencode matches your key to
+          the NRP setup by that name, and a typo isn't flagged when you save it; NRP requests just fail later. Run
+          <code>opencode auth login</code> again with the right name. <code>opencode auth list</code> shows what
+          you've saved; <code>opencode auth logout</code> removes an entry.</li>
+        <li><strong>The NRP model list updates on its own</strong> each time your server starts, so new NRP
+          models appear after a restart. Don't copy the list into your own <code>opencode.json</code>, or it
+          will go out of date.</li>
+        <li><strong>The built-in NRP provider only exists on this hub</strong>, in the standard environments.
+          Elsewhere, or in a custom image, you'd need to define it yourself in
+          <code>~/.config/opencode/opencode.json</code>.</li>
+        <li><strong>Where your settings live:</strong> opencode in <code>~/.config/opencode/</code> (keys in
+          <code>~/.local/share/opencode/</code>), Kilo Code in <code>~/.config/kilo/</code>, Posit Assistant in
+          <code>~/.posit/assistant/</code>. All are in your home directory, so they're kept across restarts.</li>
+        <li><strong>"Rate limit" or "overloaded" errors</strong> on NRP mean the model is busy. Wait a minute
+          or switch to another model.</li>
+        <li><strong>Assistants can run commands and edit your files.</strong> Read what they propose, and keep
+          your work in git so you can undo changes.</li>
+      </ul>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>ESPM JupyterHub · UC Berkeley · Hosted on the National Research Platform</span>
+    <a href="https://github.com/boettiger-lab/nautilus">Source on GitHub</a>
+  </footer>
+</body>
+</html>
