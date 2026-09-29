@@ -63,9 +63,10 @@ hub:
                       # root-owned 0600 session-rpc-key; rootless rserver (via
                       # jupyter-rsession-proxy) can't read it. Make it readable.
                       "sudo chmod a+r /var/lib/rstudio-server/session-rpc-key 2>/dev/null || true; "
-                      # Write secrets to ~/.Renviron so RStudio sees them.
+                      # Write env to ~/.Renviron so RStudio sees it (rserver hands
+                      # rsession a curated environment, not the container's).
                       # Use > (truncate) not >> to avoid appending duplicates on every spawn.
-                      "for v in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do echo \"$v=${!v}\"; done > /home/jovyan/.Renviron"
+                      "for v in AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY OPENCODE_CONFIG; do echo \"$v=${!v}\"; done > /home/jovyan/.Renviron"
                   ]
               }
           }
@@ -116,6 +117,9 @@ hub:
         SHELL: /usr/bin/bash
         GH_SCOPED_CREDS_CLIENT_ID: "Iv1.8d384d9612c2ecc3"
         GH_SCOPED_CREDS_APP_URL: "https://github.com/apps/jupyterhub-gh-creds"
+        # Written at server start by jupyter_server_config.py (see extraFiles);
+        # opencode ignores the variable if the file is missing.
+        OPENCODE_CONFIG: "/tmp/opencode/nrp.json"
         LANG: "C.UTF-8"
         LC_ALL: "C.UTF-8"
 
@@ -209,9 +213,10 @@ singleuser:
     #    custom provider must declare its models (opencode does not query
     #    /v1/models), so we fetch the live list from the public endpoint on
     #    every spawn rather than hardcode one that goes stale. The file lives in
-    #    /tmp and is passed via OPENCODE_CONFIG, which opencode merges with the
-    #    student's own ~/.config/opencode/opencode.json. If the fetch fails the
-    #    server starts normally without it.
+    #    /tmp; OPENCODE_CONFIG (set in KubeSpawner.environment and ~/.Renviron)
+    #    points at it, and opencode merges it with the student's own
+    #    ~/.config/opencode/opencode.json. If the fetch fails the server starts
+    #    normally without it.
     #
     # 2. Undo the Kilo Code preset this hub seeded until 2026-09 (an "nrp"
     #    provider backed by a shared OPENAI_API_KEY, no longer provided). Its
@@ -223,7 +228,7 @@ singleuser:
         mountPath: /usr/local/etc/jupyter/jupyter_server_config.py
         stringData: |
           """Hub-only LLM assistant setup: NRP provider for opencode, retire old Kilo preset."""
-          import json, logging, os, pathlib, urllib.request
+          import json, logging, pathlib, urllib.request
 
           logger = logging.getLogger(__name__)
 
@@ -252,8 +257,6 @@ singleuser:
               }
               OPENCODE_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
               OPENCODE_CONFIG_PATH.write_text(json.dumps(config, indent=2))
-              # Terminals and code-server inherit the jupyter server env.
-              os.environ.setdefault("OPENCODE_CONFIG", str(OPENCODE_CONFIG_PATH))
 
           def _retire_kilo_preset():
               settings = pathlib.Path.home() / ".local/share/code-server/User/settings.json"
