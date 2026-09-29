@@ -137,13 +137,16 @@ hub:
   db:
     type: sqlite-pvc
     pvc:
-      # TEMPORARY PVC SWAP to unblock deployment, 2026-01-25
-      # Old PVC hub-db-dir is stuck in ContainerCreating due to Ceph mount issue.
-      # DO NOT DELETE the old volume; data not migrated. To revert: return size to 10Gi below.
+      # CephFS (ReadWriteMany) rather than Ceph block (ReadWriteOnce): an RWO
+      # volume stays attached to its node when that node dies, so the
+      # replacement hub pod can't mount it and the hub is down until an NRP
+      # admin intervenes (2026-01-25, and again 2026-09-26 for ~3 days).
+      # With RWX the new pod can mount it on any node right away.
+      # Deployment strategy is Recreate, so only one hub has the sqlite open.
       accessModes:
-        - ReadWriteOnce
-      storage: 11Gi
-      storageClassName: rook-ceph-block
+        - ReadWriteMany
+      storage: 1Gi
+      storageClassName: rook-cephfs
   resources:
     limits:
       cpu: 2
