@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Getting started · ESPM JupyterHub</title>
+  <meta name="description" content="How to use the ESPM JupyterHub on the National Research Platform (NRP).">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">ESPM JupyterHub <span>· UC Berkeley</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="index.html" aria-current="page">Getting started</a>
+        <a href="ai.html">AI assistants</a>
+        <a href="help.html">Troubleshooting</a>
+        <a href="https://espm.nrp-nautilus.io">Open the hub ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <article class="card">
+      <h1>Getting started</h1>
+      <p class="lead">A cloud computing environment for ESPM courses and research, with R, Python and
+        common data science tools already installed. It runs on the
+        <a href="https://nrp.ai">National Research Platform</a> (NRP).</p>
+
+      <ul class="toc">
+        <li><a href="#sign-in">Signing in</a></li>
+        <li><a href="#options">Choosing options</a></li>
+        <li><a href="#files">Your files</a></li>
+        <li><a href="#shutdown">Idle shutdown</a></li>
+        <li><a href="#github">Using GitHub</a></li>
+      </ul>
+
+      <h2 id="sign-in">Signing in</h2>
+      <ol>
+        <li>Go to <a href="https://espm.nrp-nautilus.io"><code>espm.nrp-nautilus.io</code></a>.</li>
+        <li>When asked for an identity provider, choose <strong>University of California, Berkeley</strong>
+          and sign in with CalNet.</li>
+        <li>You'll see a page of options. Pick what you need (see below) and press <strong>Start</strong>.</li>
+      </ol>
+      <p>Starting a server usually takes under a minute. The first start on a new machine, or after an image
+        update, can take several minutes while the software downloads. Leave the tab open while it loads.</p>
+
+      <h2 id="options">Choosing options</h2>
+
+      <h3>Interface</h3>
+      <p>This choice only sets which interface opens first. The standard environments include all
+        three: change the end of the URL to <code>/rstudio</code>, <code>/vscode</code> or <code>/lab</code> to switch.</p>
+      <ul>
+        <li><strong>RStudio</strong>: the default.</li>
+        <li><strong>VS Code</strong>: a full code editor in the browser. This is where the Kilo Code AI
+          assistant lives.</li>
+        <li><strong>JupyterLab</strong>: notebooks, terminals and a file browser.</li>
+      </ul>
+
+      <h3>Environment</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Option</th><th>Use it for</th></tr></thead>
+          <tbody>
+            <tr><td><strong>rocker/ml (CPU)</strong></td><td>The default. R, Python, geospatial tools and AI coding
+              assistants. Pick this unless you know you need something else.</td></tr>
+            <tr><td>SpeciesNet (GPU)</td><td>Camera-trap and computer-vision work. Requests a GPU.</td></tr>
+            <tr><td>rocker/cuda (GPU)</td><td>General GPU machine learning. Requests a GPU.</td></tr>
+            <tr><td>Rocker ML spatial</td><td>The upstream geospatial image, without our additions.</td></tr>
+            <tr><td>Custom image</td><td>Any public Docker image that includes <code>jupyterhub-singleuser</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>GPUs are shared across the whole platform. Only choose a GPU environment if your code
+        actually uses one. GPU servers may take longer to start while the platform finds a free GPU.</p>
+
+      <h3>Resource allocation</h3>
+      <p>Choose 8, 16, 32, 64 or 128 GB of memory; the larger options also give you more CPU cores.
+        Start with the default <strong>8 GB</strong>. If your work runs out of memory (an R session or
+        Python kernel suddenly restarts), stop the server and start it again with more.</p>
+
+      <h2 id="files">Your files</h2>
+      <div class="note">
+        <p><strong>Only your home directory is saved.</strong> Anything in <code>/home/jovyan</code>
+          (the folder you start in) survives restarts. Everything else resets each time your server starts.</p>
+      </div>
+      <ul>
+        <li>Your home directory holds <strong>15 GB</strong>. Keep large datasets in cloud storage
+          and read them from there instead of copying them in.</li>
+        <li><strong>Installed packages don't persist.</strong> <code>pip install</code> and
+          <code>install.packages()</code> put packages into the system environment, not your home directory,
+          so they're gone after a restart. Keep a <code>requirements.txt</code> or an install script in your
+          project and re-run it.</li>
+        <li>Your home directory is tied to your Berkeley email address, so it's the same in every course
+          that uses this hub.</li>
+      </ul>
+
+      <h2 id="shutdown">Idle shutdown</h2>
+      <p>Servers that have been idle for about <strong>an hour</strong> are shut down automatically to free
+        resources for others. Your files in the home directory are kept; unsaved work in open editors and
+        anything running in memory is lost. Save often.</p>
+      <p>You can also stop your server yourself: in JupyterLab use <em>File → Hub Control Panel →
+        Stop My Server</em>, or visit <a href="https://espm.nrp-nautilus.io/hub/home"><code>/hub/home</code></a>.
+        Stopping and starting again is the fix for many problems.</p>
+
+      <h2 id="github">Using GitHub</h2>
+      <p>To push to GitHub from the hub, get short-lived credentials by running this in a terminal:</p>
+      <pre><code>gh-scoped-creds</code></pre>
+      <p>It prints a code and a link. Open the link, enter the code, and approve. The first time, you also
+        need to <a href="https://github.com/apps/jupyterhub-gh-creds">install the app</a> and choose which
+        repositories it can access. The credentials last 8 hours; run the command again when pushes start
+        failing.</p>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <span>ESPM JupyterHub · UC Berkeley · Hosted on the National Research Platform</span>
+    <a href="https://github.com/boettiger-lab/nautilus">Source on GitHub</a>
+  </footer>
+</body>
+</html>
