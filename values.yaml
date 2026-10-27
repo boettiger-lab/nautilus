@@ -84,6 +84,13 @@ hub:
       oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
     CILogonOAuthenticator:
       oauth_callback_url: https://espm.nrp-nautilus.io/hub/oauth_callback
+      # oauthenticator 17 adds "profile" to the default scopes, but our CILogon
+      # client is not registered for it and CILogon now rejects the login with
+      # invalid_scope. We only need email (username_claim) and the idp claim.
+      scope:
+        - openid
+        - email
+        - org.cilogon.userinfo
       admin_users:
       - cboettig@berkeley.edu
       # NRP-required admin users (per https://nrp.ai/documentation/userdocs/jupyter/jupyterhub/)
@@ -319,7 +326,7 @@ singleuser:
             display_name: rocker/ml (CPU)
             description: Machine Learning environment for R & python (rocker/ml)
             kubespawner_override:
-              image: "ghcr.io/boettiger-lab/k8s@sha256:ffa996b3ac7e83c147f1540cd5ef2fafe990a5d612baa4bf2e8fef6ec0876050"
+              image: "ghcr.io/boettiger-lab/k8s@sha256:de356e3d4974a1c6f12c0df16856779e7da93b01cba24201040158adfab62aba"
             default: true
           02-speciesnet:
             display_name: SpeciesNet (GPU)
@@ -332,14 +339,14 @@ singleuser:
             display_name: rocker/cuda (GPU)
             description: Machine Learning environment for R & python
             kubespawner_override:
-              image: "ghcr.io/rocker-org/cuda:latest"
+              image: "ghcr.io/rocker-org/cuda@sha256:8a3263493520c307cb9634a4eda9a71291d210c20ae3be43c004f738f929a393"
               extra_resource_limits:
                 nvidia.com/gpu: "1"
           04-geospatial:
             display_name: Rocker ML spatial
             description: Geospatial environment for R & python (rocker/ml-spatial)
             kubespawner_override:
-              image: "ghcr.io/rocker-org/ml-spatial:latest"
+              image: "ghcr.io/rocker-org/ml-spatial@sha256:d35fa0207d5ebdafa3c4705db0e119b3b9df2566fe683a88ab92562ac4c977dc"
 
       resource_allocation:
         display_name: Resource Allocation

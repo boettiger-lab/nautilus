@@ -7,7 +7,7 @@ helm repo update
 helm upgrade --cleanup-on-fail \
   --install jupyterhelm jupyterhub/jupyterhub \
   --namespace espm-157 \
-  --version=4.0.0 \
+  --version=4.4.2 \
   --timeout 90m0s \
   --values values.yaml
 
