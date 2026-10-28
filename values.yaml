@@ -332,7 +332,7 @@ singleuser:
             display_name: SpeciesNet (GPU)
             description: CV/ML for ecology
             kubespawner_override:
-              image: "ghcr.io/boettiger-lab/speciesnet:latest"
+              image: "ghcr.io/boettiger-lab/speciesnet@sha256:3ee37c3a6bf099e0c3a367b6e3f320e44e9f09ca3834a453764e005add062254"
               extra_resource_limits:
                 nvidia.com/gpu: "1"
           03-rocker-cuda:
